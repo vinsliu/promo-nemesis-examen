@@ -144,10 +144,7 @@ Tous les tests backend (authentification, sécurité commandes et stock), sans e
 npm --prefix backend test
 ```
 
-Le bilan des corrections et les limites restantes sont dans
-[`audit/CORRECTIONS-SECURITE.md`](audit/CORRECTIONS-SECURITE.md).
-Les lots fonctionnels suivants sont documentés dans
-[`audit/CORRECTIONS-FONCTIONNELLES.md`](audit/CORRECTIONS-FONCTIONNELLES.md).
+Le détail des corrections est dans [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Lancement avec Docker
 
@@ -428,5 +425,4 @@ npm run docs
 ```
 
 Relancer cette commande et commiter `docs/API.md` après toute modification des commentaires JSDoc.
-Le journal des évolutions est dans [`CHANGELOG.md`](CHANGELOG.md) ; le rapport d'audit sécurité et
-robustesse est dans [`audit/AUDIT-SECURITE-ROBUSTESSE.md`](audit/AUDIT-SECURITE-ROBUSTESSE.md).
+Le journal des évolutions est dans [`CHANGELOG.md`](CHANGELOG.md).

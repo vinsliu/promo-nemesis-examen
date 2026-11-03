@@ -12,7 +12,6 @@ Les dates sont celles des commits.
 - Validation Joi des entrées d'authentification, de commande et de stock (`backend/validation/schemas.js`).
 - Routes `POST /api/auth/logout` et `GET /api/auth/me`.
 - ESLint et Prettier à la racine (`npm run lint`, `npm run format:check`).
-- Rapport `audit/AUDIT-SECURITE-ROBUSTESSE.md`.
 
 ### Modifié
 - Le jeton JWT passe dans un cookie HttpOnly (`SameSite=Strict`, `Secure` en production) au lieu de `localStorage` ;
