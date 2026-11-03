@@ -20,7 +20,9 @@ env:
 jobs:
   backend:
     name: Backend tests (MongoDB)
-    runs-on: ubuntu-latest
+    # MongoDB 8.0 refuses Linux kernels >= 6.19 (SERVER-121912).
+    # Ubuntu 22.04 runners use kernel 6.8; containers share the host kernel.
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     services:
       mongo:
