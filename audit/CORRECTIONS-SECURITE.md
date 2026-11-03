@@ -1,5 +1,7 @@
 # Corrections de sécurité — 3 novembre 2026
 
+Ce document décrit le premier lot. Voir [les corrections fonctionnelles suivantes](CORRECTIONS-FONCTIONNELLES.md) pour les bugs désormais corrigés et la politique d'inscription actuelle.
+
 Travail réalisé avec deux agents : un correcteur et un vérificateur indépendant, coordonnés par l'agent principal. Les corrections sont destinées à la branche `dev` uniquement. L'audit initial reste un état de référence avant corrections.
 
 ## 1. Authentification — corrigé et vérifié

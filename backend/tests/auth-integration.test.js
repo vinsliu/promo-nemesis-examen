@@ -20,9 +20,9 @@ test('case-insensitive usernames preserve legacy accounts and enforce uniqueness
       const result = response(); await auth.login({ body: { username, password: 'old' } }, result);
       assert.equal(result.code, 200); assert.equal(result.body.username, `${prefix}Legacy`);
     }
-    const body = { username: `${prefix}legacy`, email: `${prefix}-duplicate@example.test`, password: 'password' };
+    const body = { username: `${prefix}legacy`, email: `${prefix}-duplicate@example.test`, password: 'Password123!' };
     emails.push(body.email); const duplicate = response(); await auth.register({ body }, duplicate); assert.equal(duplicate.code, 409);
-    const registration = async (username, email) => { emails.push(email); const result = response(); await auth.register({ body: { username, email, password: 'password' } }, result); return result; };
+    const registration = async (username, email) => { emails.push(email); const result = response(); await auth.register({ body: { username, email, password: 'Password123!' } }, result); return result; };
     const results = await Promise.all([registration(`${prefix}New`, `${prefix}-one@example.test`), registration(`${prefix}NEW`, `${prefix}-two@example.test`)]);
     assert.deepEqual(results.map(result => result.code).sort(), [201, 409]);
   } finally {

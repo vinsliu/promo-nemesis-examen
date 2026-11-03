@@ -30,9 +30,11 @@ Application : http://localhost:3000. Arrêt : `Ctrl + C`.
 ## Authentification
 
 Les nouvelles inscriptions demandent un nom non vide (100 caractères maximum),
-un email valide (254 caractères maximum) et un mot de passe de 8 à 72 octets UTF-8.
-La limite en octets évite la troncature silencieuse de bcrypt ; les mots de passe
-historiques plus courts restent utilisables à la connexion. La casse d'affichage des noms est conservée, mais leur recherche et leur unicité
+un email valide (254 caractères maximum) et un mot de passe d'au moins 12 caractères,
+avec une majuscule, une minuscule, un chiffre et un caractère spécial, dans la limite
+de 72 octets UTF-8. Cette limite évite la troncature silencieuse de bcrypt ; les mots
+de passe historiques plus courts restent utilisables à la connexion.
+Les nouveaux noms sont enregistrés en minuscules. Leur recherche et leur unicité
 sont insensibles aux majuscules/minuscules (collation MongoDB française, force 2).
 Les anciens comptes gardent leur nom et leur mot de passe ; aucune fusion automatique
 n'est réalisée. Si deux noms historiques ne diffèrent que par la casse, la création
@@ -65,6 +67,8 @@ npm --prefix backend test
 
 Le bilan des corrections et les limites restantes sont dans
 [`audit/CORRECTIONS-SECURITE.md`](audit/CORRECTIONS-SECURITE.md).
+Les lots fonctionnels suivants sont documentés dans
+[`audit/CORRECTIONS-FONCTIONNELLES.md`](audit/CORRECTIONS-FONCTIONNELLES.md).
 
 ## Lancement avec Docker
 

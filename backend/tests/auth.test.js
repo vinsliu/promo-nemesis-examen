@@ -72,10 +72,10 @@ test('register rejects operators, malformed email and bcrypt-truncated passwords
 
 test('register checks both unique fields and ignores an injected admin role', async () => {
   User.findOne = filter => queryResult(() => {
-    assert.deepEqual(filter, { $or: [{ email: 'a@example.com' }, { username: 'NeW' }] }); return null;
+    assert.deepEqual(filter, { $or: [{ email: 'a@example.com' }, { username: 'new' }] }); return null;
   });
   User.prototype.save = async function () {
-    assert.equal(this.username, 'NeW'); assert.equal(this.role, 'user'); assert.equal(this.email, 'a@example.com'); return this;
+    assert.equal(this.username, 'new'); assert.equal(this.role, 'user'); assert.equal(this.email, 'a@example.com'); return this;
   };
   const res = response();
   await auth.register({ body: { username: ' NeW ', email: ' a@example.com ', password: 'Password123!', role: 'admin' } }, res);
@@ -138,9 +138,9 @@ test('rate limiter bounds its memory and recovers capacity after expiration', ()
 });
 
 
-test('registration enforces 8 to 72 UTF-8 bytes without adding composition requirements', async () => {
+test('registration enforces length and every password composition requirement', async () => {
   User.findOne = () => assert.fail('must not query');
-  for (const password of ['short', ' '.repeat(8), 'é'.repeat(37)]) {
+  for (const password of ['Abcdefghi1!', 'abcdefghij1!', 'ABCDEFGHIJ1!', 'Abcdefghijk!', 'Abcdefghijk1', 'Abcdefghij1 ', 'Aa1!' + 'é'.repeat(35)]) {
     const res = response(); await auth.register({ body: { username: 'name', email: 'a@example.com', password } }, res);
     assert.equal(res.code, 400);
   }

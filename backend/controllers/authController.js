@@ -37,14 +37,15 @@ exports.register = async (req, res) => {
   const { username, email, password } = req.body || {};
   if (!validText(username, 100) || !validText(email, 254) ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
-      typeof password !== 'string' || !password.trim() ||
-      Buffer.byteLength(password, 'utf8') < 8 || Buffer.byteLength(password, 'utf8') > 72) {
-    return res.status(400).json({ message: 'Nom, email et mot de passe valides requis (mot de passe : 8 à 72 octets).' });
+      typeof password !== 'string' || [...password].length < 12 ||
+      !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) ||
+      !/[^A-Za-z0-9\s]/.test(password) || Buffer.byteLength(password, 'utf8') > 72) {
+    return res.status(400).json({ message: 'Nom et email valides requis. Le mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (72 octets maximum).' });
   }
 
   try {
     const normalizedEmail = email.trim();
-    const normalizedUsername = username.trim();
+    const normalizedUsername = username.trim().toLowerCase();
     const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username: normalizedUsername }] }).collation(usernameCollation);
     if (existingUser) return res.status(409).json(duplicateAccount);
     // Never accept a client-supplied role.
