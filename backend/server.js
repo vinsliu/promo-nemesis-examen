@@ -11,11 +11,12 @@ const cookieParser = require('cookie-parser');
 function createApp({ log = logger } = {}) {
   const app = express();
   const allowedOrigins = process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim().replace(/\/+$/, '')).filter(Boolean)
     : process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3000'];
   app.use(requestLogging(log));
   app.disable('x-powered-by');
-  app.use(helmet());
+  // L'API est appelée depuis un autre domaine (front) : CORP cross-origin, l'accès reste filtré par CORS.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use(cookieParser());
   app.use(express.json({ limit: '10kb' }));
