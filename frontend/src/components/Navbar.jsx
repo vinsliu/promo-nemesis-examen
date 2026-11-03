@@ -1,0 +1,70 @@
+// src/components/Navbar.js
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useSession, clearSession } from '../services/session';
+import client from '../services/client';
+import { useCart } from '../context/CartContext';
+
+/**
+ * Barre de navigation : accueil, panier avec la bulle du nombre d'articles, lien Administration
+ * (rôle admin), connexion/inscription ou déconnexion. La déconnexion appelle l'API pour effacer le
+ * cookie HttpOnly, puis vide la session locale même si l'appel échoue.
+ */
+const Navbar = () => {
+  const navigate = useNavigate();
+  const { cart } = useCart();
+
+  // Session d'affichage (le jeton, lui, est dans un cookie HttpOnly)
+  const session = useSession();
+  const isAuthenticated = !!session;
+  const username = session?.username; // Récupère le nom d'utilisateur si connecté
+
+  const handleLogout = async () => {
+    // Le serveur efface le cookie HttpOnly ; l'affichage est nettoyé même si l'appel échoue.
+    try { await client.post('/auth/logout'); } catch { /* Session locale supprimée quand même. */ }
+    clearSession();
+    navigate('/login');
+  };
+
+  return (
+    <nav className="bg-blue-500 text-white p-4 flex justify-between items-center">
+      <div className="flex items-center space-x-4">
+        <Link to="/" className="text-xl font-bold">Mon Application</Link>
+      </div>
+      
+      <div className="flex items-center space-x-4">
+        {/* Afficher le nom de l'utilisateur s'il est connecté */}
+        {isAuthenticated && (
+          <span className="font-semibold">
+            Bonjour, {username}
+          </span>
+        )}
+        
+        {/* Lien vers le Panier avec le nombre d'articles */}
+        <Link to="/cart" className="relative">
+          <span>Panier</span>
+          {cart.length > 0 && (
+            <span className="absolute -top-3 -right-4 flex h-5 min-w-[1.25rem] items-center justify-center bg-red-500 text-white rounded-full text-xs font-bold px-1" aria-label="Articles dans le panier">
+              {cart.reduce((total, item) => total + item.quantity, 0)}
+            </span>
+          )}
+        </Link>
+        
+        {session?.role === 'admin' && <Link to='/admin'>Administration</Link>}
+        {/* Lien Connexion / Déconnexion */}
+        {!isAuthenticated ? (
+          <>
+            <Link to="/login">Connexion</Link>
+            <Link to="/register">Inscription</Link>
+          </>
+        ) : (
+          <button onClick={handleLogout} className="bg-red-500 px-4 py-2 rounded">
+            Déconnexion
+          </button>
+        )}
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;

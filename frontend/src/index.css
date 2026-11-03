@@ -3,6 +3,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Thème clair explicite : évite le texte sombre sur fond sombre quand le navigateur est en mode sombre. */
+:root { color-scheme: light; }
+body { @apply bg-gray-50 text-gray-900 antialiased; }
+
 /* body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

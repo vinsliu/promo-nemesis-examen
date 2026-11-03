@@ -11,9 +11,11 @@ const orderItemSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: [1, 'Au moins 1 produit est requis'],
+    validate: { validator: Number.isSafeInteger, message: 'Quantité entière requise' },
   },
   price: {
     type: Number,
+    min: 0,
     required: true,
   },
 });
@@ -26,6 +28,11 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    idempotencyKey: { type: String },
+    requestHash: { type: String },
+    lifecycle: { type: String, enum: ['creating', 'active', 'releasing', 'failed', 'deleted'], default: 'active' },
+    releaseTarget: { type: String, enum: ['active', 'failed', 'deleted'] },
+    failureMessage: { type: String },
     items: [orderItemSchema], // Array of order items
     total: {
       type: Number,
@@ -65,6 +72,8 @@ const orderSchema = new mongoose.Schema(
     timestamps: true, // Automatically adds createdAt and updatedAt fields
   }
 );
+
+orderSchema.index({ userId: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } });
 
 // Create the model
 const Order = mongoose.model('Order', orderSchema);
