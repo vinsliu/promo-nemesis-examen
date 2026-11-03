@@ -74,7 +74,7 @@ const Admin = () => {
       // Réinitialisation du champ
       setNewStock({ ...newStock, [productId]: "" });
     } catch (error) {
-      console.error("Erreur lors de la mise à jour du stock :", error);
+      console.error("Erreur lors de la mise à jour du stock :");
       alert("Échec de la mise à jour du stock.");
     } finally {
       setUpdatingStock(null); // Désactive le loader

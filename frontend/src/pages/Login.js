@@ -34,7 +34,7 @@ const Login = () => {
         alert(message); // Affiche un message à l'utilisateur (vous pouvez remplacer par un toast)
       } else {
         // Erreur réseau ou autre
-        console.error("Erreur réseau ou serveur", error);
+        console.error("Erreur réseau ou serveur");
         alert("Une erreur est survenue. Veuillez réessayer.");
       }
     }

@@ -27,6 +27,40 @@ npm run start:all
 
 Application : http://localhost:3000. Arrêt : `Ctrl + C`.
 
+## Authentification
+
+Les nouvelles inscriptions demandent un nom non vide (100 caractères maximum),
+un email valide (254 caractères maximum) et un mot de passe de 8 à 72 octets UTF-8.
+La limite en octets évite la troncature silencieuse de bcrypt ; les mots de passe
+historiques plus courts restent utilisables à la connexion. La casse des noms
+et emails existants est conservée ; les espaces autour d'un nouvel email sont retirés.
+Les doublons de nom ou d'email renvoient 409. Une connexion refusée renvoie 401
+avec le même message, que le compte existe ou non.
+
+Les routes limitent les appels à 20 connexions et 10 inscriptions par période
+de 15 minutes et par adresse de connexion réseau. Un dépassement renvoie 429
+avec `Retry-After`. Les en-têtes de forwarding du client ne sont pas utilisés.
+Derrière le proxy du frontend Docker ou un reverse proxy, les utilisateurs
+partagent donc le quota de ce proxy. Ce limiteur en mémoire est adapté au
+démarrage local sur une instance ; pour la production, prévoir un stockage partagé
+et une identification de l'adresse client fondée sur des proxies explicitement
+autorisés. Un redémarrage réinitialise les compteurs.
+
+Tests du lot authentification, sans base de données ni email :
+
+```bash
+node --test backend/tests/auth.test.js
+```
+
+Tous les tests backend (authentification, sécurité commandes et stock), sans email :
+
+```bash
+npm --prefix backend test
+```
+
+Le bilan des corrections et les limites restantes sont dans
+[`audit/CORRECTIONS-SECURITE.md`](audit/CORRECTIONS-SECURITE.md).
+
 ## Lancement avec Docker
 
 Prérequis : Docker Desktop démarré.

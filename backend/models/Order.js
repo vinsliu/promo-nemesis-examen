@@ -11,9 +11,11 @@ const orderItemSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: [1, 'Au moins 1 produit est requis'],
+    validate: { validator: Number.isSafeInteger, message: 'Quantité entière requise' },
   },
   price: {
     type: Number,
+    min: 0,
     required: true,
   },
 });

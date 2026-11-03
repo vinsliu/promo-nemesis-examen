@@ -12,7 +12,7 @@ export const getOrders = () => {
       },
     });
   } catch (error) {
-    console.error("Erreur lors de la recupération des commandes :", error);
+    console.error("Erreur lors de la recupération des commandes :");
     throw error; // Lancer l'erreur pour que le composant puisse la gérer
   }
 };
@@ -26,7 +26,7 @@ export const getProducts = () => {
       },
     });
   } catch (error) {
-    console.error("Erreur lors de la recupération des produits :", error);
+    console.error("Erreur lors de la recupération des produits :");
     throw error; // Lancer l'erreur pour que le composant puisse la gérer
   }
 };
@@ -45,8 +45,7 @@ export const updateOrderStatus = (orderId, status) => {
     );
   } catch (error) {
     console.error(
-      "Erreur lors de la mise à jour du statut de la commande :",
-      error
+      "Erreur lors de la mise à jour du statut de la commande :"
     );
     throw error; // Lancer l'erreur pour que le composant puisse la gérer
   }
@@ -65,7 +64,7 @@ export const validateOrder = (orderId) => {
       }
     );
   } catch (error) {
-    console.error("Erreur lors de la validation de la commande :", error);
+    console.error("Erreur lors de la validation de la commande :");
     throw error; // Lancer l'erreur pour que le composant puisse la gérer
   }
 };
@@ -84,7 +83,7 @@ export const updateProductStock = (productId, stock) => {
       }
     );
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du stock :", error);
+    console.error("Erreur lors de la mise à jour du stock :");
     throw error; // Lancer l'erreur pour que le composant puisse la gérer
   }
 };

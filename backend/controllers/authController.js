@@ -1,70 +1,56 @@
-// backend/controllers/authController.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User'); // modèle utilisateur
+const User = require('../models/User');
 require('dotenv').config();
-const axios = require('axios');
-const authLog = require('debug')('authRoutes:console')
-//const sendEmail = require('../services/emailService');
+
+const invalidCredentials = { message: 'Identifiants incorrects.' };
+const duplicateAccount = { message: "Cet email ou ce nom d'utilisateur est déjà utilisé." };
+// Compare even for an unknown account to avoid a cheap account-existence timing signal.
+const dummyPasswordHash = bcrypt.hashSync('unused-authentication-password', 10);
+const validText = (value, max) => typeof value === 'string' &&
+  value.trim().length > 0 && value.length <= max;
 
 exports.login = async (req, res) => {
-  const { username, password } = req.body;
-  authLog(`username is ${username} password is ${password}`);
-
+  const { username, password } = req.body || {};
+  if (!validText(username, 100) || !validText(password, 1024) ||
+      Buffer.byteLength(password, 'utf8') > 1024) {
+    return res.status(400).json({ message: 'Identifiants invalides.' });
+  }
+  if (!process.env.JWT_SECRET) {
+    return res.status(503).json({ message: 'Authentification indisponible.' });
+  }
 
   try {
     const user = await User.findOne({ username });
-    authLog(`user is ${JSON.stringify(user)}`)
-    if (!user) return res.status(400).json({ message: 'Utilisateur non trouvé' });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Mot de passe incorrect' });
-
-    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    authLog(`token is ${token}`)
-
-    res.json({ token, role: user.role, username: user.username });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    const isMatch = await bcrypt.compare(password, user ? user.password : dummyPasswordHash);
+    if (!user || !isMatch) return res.status(401).json(invalidCredentials);
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET,
+      { algorithm: 'HS256', expiresIn: '1h' });
+    return res.json({ token, role: user.role, username: user.username });
+  } catch {
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-
 exports.register = async (req, res) => {
-  const { username, email, password } = req.body;
-  authLog(`username is ${username} email is ${email} password is ${password}`);
+  const { username, email, password } = req.body || {};
+  if (!validText(username, 100) || !validText(email, 254) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      typeof password !== 'string' || !password.trim() ||
+      Buffer.byteLength(password, 'utf8') < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+    return res.status(400).json({ message: 'Nom, email et mot de passe valides requis (mot de passe : 8 à 72 octets).' });
+  }
 
   try {
-    // Vérifier si l'email ou le nom d'utilisateur existe déjà
-    const existingUser = await User.findOne({ email });
-    
-    if (existingUser) {
-      authLog(`user exist => ${JSON.stringify(existingUser)}`)
-      return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
-    }
-
-    // Créer un nouvel utilisateur
-    const user = new User({ username, email, password });
+    const normalizedEmail = email.trim();
+    const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username }] });
+    if (existingUser) return res.status(409).json(duplicateAccount);
+    // Never accept a client-supplied role.
+    const user = new User({ username, email: normalizedEmail, password });
     await user.save();
-
-    authLog(`user after creation => ${JSON.stringify(user)}`)
-
-    // Envoyer un email de bienvenue
-    // await sendEmail(
-    //   email,
-    //   'Bienvenue dans notre application',
-    //   `Bonjour ${username},\n\nMerci de vous être inscrit. Nous sommes ravis de vous accueillir !`
-    // );
-
-    // await axios.post('http://localhost:4002/notify', {
-    //   to: email,
-    //   subject: 'Bienvenue dans notre application',
-    //   text: `Bonjour ${username},\n\nMerci de vous être inscrit. Nous sommes ravis de vous accueillir !`,
-    // });
-
-    res.status(201).json({ message: 'Utilisateur créé avec succès.' });
+    return res.status(201).json({ message: 'Utilisateur créé avec succès.' });
   } catch (error) {
-    console.error('Erreur lors de l\'inscription', error);
-    res.status(500).json({ message: 'Une erreur est survenue.' });
+    if (error.code === 11000) return res.status(409).json(duplicateAccount);
+    return res.status(500).json({ message: 'Une erreur est survenue.' });
   }
 };
