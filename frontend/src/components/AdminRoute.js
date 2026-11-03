@@ -1,16 +1,9 @@
-// src/components/AdminRoute.js
 import React from 'react';
-import { Navigate } from 'react-router-dom';
-
+import { Navigate, useLocation } from 'react-router-dom';
+import { useSession } from '../services/session';
 const AdminRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const role = localStorage.getItem('role');
-
-  if (!token || role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
+  const session = useSession(); const location = useLocation();
+  if (!session) return <Navigate to="/login" state={{ returnTo: location.pathname }} replace />;
+  return session.role === 'admin' ? children : <Navigate to="/" replace />;
 };
-
 export default AdminRoute;

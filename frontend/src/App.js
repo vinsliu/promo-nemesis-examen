@@ -1,6 +1,6 @@
 // src/App.js
 import React from 'react';
-import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
@@ -42,7 +42,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'shippig_payment',
-        element: <ShippingPayment />,
+        element: <Navigate to='/shipping-payment' replace />
+      },
+      {
+        path: 'shipping-payment',
+        element: <ProtectedRoute><ShippingPayment /></ProtectedRoute>,
       },
       {
         path: 'cart',

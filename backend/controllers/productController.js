@@ -18,10 +18,15 @@ exports.updateProductStock = async (req, res) => {
     return res.status(400).json({ message: 'Identifiant valide et stock entier positif ou nul requis.' });
   }
   try {
-    const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: 'Produit non trouvé.' });
-    product.stock = numericStock;
-    await product.save();
+    // Keep available stock + all outstanding reservations safe even after cancellation.
+    const reservedTotal = { $sum: { $map: { input: { $objectToArray: { $ifNull: ['$reservations', {}] } }, as: 'entry', in: '$$entry.v' } } };
+    const product = await Product.findOneAndUpdate({ _id: productId,
+      $expr: { $lte: [{ $add: [numericStock, reservedTotal] }, Number.MAX_SAFE_INTEGER] } },
+      { $set: { stock: numericStock } }, { new: true, runValidators: true });
+    if (!product) {
+      const exists = await Product.exists({ _id: productId });
+      return res.status(exists ? 409 : 404).json({ message: exists ? 'Stock trop élevé compte tenu des réservations.' : 'Produit non trouvé.' });
+    }
     return res.json({ message: 'Stock mis à jour avec succès.', product });
   } catch {
     return res.status(500).json({ message: 'Erreur serveur.' });

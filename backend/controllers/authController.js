@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const usernameCollation = { locale: 'fr', strength: 2 };
 require('dotenv').config();
 
 const invalidCredentials = { message: 'Identifiants incorrects.' };
@@ -21,7 +22,7 @@ exports.login = async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username }).collation(usernameCollation);
     const isMatch = await bcrypt.compare(password, user ? user.password : dummyPasswordHash);
     if (!user || !isMatch) return res.status(401).json(invalidCredentials);
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET,
@@ -43,10 +44,11 @@ exports.register = async (req, res) => {
 
   try {
     const normalizedEmail = email.trim();
-    const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username }] });
+    const normalizedUsername = username.trim();
+    const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username: normalizedUsername }] }).collation(usernameCollation);
     if (existingUser) return res.status(409).json(duplicateAccount);
     // Never accept a client-supplied role.
-    const user = new User({ username, email: normalizedEmail, password });
+    const user = new User({ username: normalizedUsername, email: normalizedEmail, password });
     await user.save();
     return res.status(201).json({ message: 'Utilisateur créé avec succès.' });
   } catch (error) {

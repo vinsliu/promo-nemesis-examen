@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '../services/config';
 // src/pages/Login.js
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
 const Login = () => {
@@ -10,6 +10,7 @@ const Login = () => {
     password: "",
   });
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +26,9 @@ const Login = () => {
       localStorage.setItem("username", username);
       localStorage.setItem("role", role);
 
-      navigate("/"); // Redirige vers la page d'accueil après la connexion
+      window.dispatchEvent(new Event('session-change'));
+      const returnTo = location.state?.returnTo;
+      navigate(typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.includes('\\') ? returnTo : '/', { replace: true }); // Redirige vers la page d'accueil après la connexion
     } catch (error) {
       // Gestion des erreurs
       if (error.response) {

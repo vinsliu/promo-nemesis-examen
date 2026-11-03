@@ -1,13 +1,8 @@
+import { paymentOptions } from '../services/checkoutOptions';
 import { useCart } from '../context/CartContext';
 
 const PaymentMethodSelection = () => {
   const { paymentMethod, dispatch } = useCart();
-  const paymentOptions = [
-    'Carte bancaire',
-    'PayPal',
-    'Virement',
-  ];
-
   const handlePaymentChange = (event) => {
     dispatch({ type: 'SET_PAYMENT_METHOD', payload: event.target.value });
   };

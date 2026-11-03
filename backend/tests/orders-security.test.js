@@ -1,4 +1,4 @@
-const { test, afterEach, after } = require('node:test');
+const { test, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
@@ -10,19 +10,25 @@ require.cache[notificationPath].exports = async () => {};
 const orders = require('../controllers/orderController');
 const products = require('../controllers/productController');
 const original = { find: Product.find, findById: Product.findById, productSave: Product.prototype.save,
-  orderSave: Order.prototype.save, update: Order.findByIdAndUpdate, orderFind: Order.find };
+  orderSave: Order.prototype.save, update: Order.findByIdAndUpdate, orderFind: Order.find,
+  orderFindOne: Order.findOne, orderUpdate: Order.findOneAndUpdate, productUpdate: Product.findOneAndUpdate, productByIdUpdate: Product.findByIdAndUpdate };
+beforeEach(() => { Order.findOne = async () => null; });
 afterEach(() => { Product.find = original.find; Product.findById = original.findById;
   Product.prototype.save = original.productSave; Order.prototype.save = original.orderSave;
-  Order.findByIdAndUpdate = original.update; Order.find = original.orderFind; });
+  Order.findByIdAndUpdate = original.update; Order.find = original.orderFind;
+  Order.findOne = original.orderFindOne; Order.findOneAndUpdate = original.orderUpdate;
+  Product.findOneAndUpdate = original.productUpdate; Product.findByIdAndUpdate = original.productByIdUpdate; });
 const id = '507f1f77bcf86cd799439011';
 function response() { return { code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } }; }
-function request() { return { user: { userId: id }, body: { items: [{ productId: id, quantity: 3, price: -999 }],
+function request() { return { user: { userId: id }, headers: { 'idempotency-key': 'test-checkout-attempt-123' }, body: { items: [{ productId: id, quantity: 3, price: -999 }],
   shippingAddress: { street: ' rue ', city: ' Paris ', postalCode: ' 75000 ', country: ' France ' },
   paymentMethod: 'Carte bancaire', shippingMethod: 'colissimo' } }; }
 
 test('order ignores forged prices and total, reads catalog price and normalizes address', async () => {
   Product.find = async filter => { assert.deepEqual(filter, { _id: { $in: [id] } }); return [{ _id: id, price: 0.1 }]; };
-  Order.prototype.save = async function () { return this; };
+  let saved; Order.prototype.save = async function () { saved = this; return this; };
+  Product.findOneAndUpdate = async () => ({});
+  Order.findOneAndUpdate = async () => { saved.lifecycle = 'active'; return saved; };
   const req = request(); req.body.total = -100000; const res = response(); await orders.createOrder(req, res);
   assert.equal(res.code, 201); assert.equal(res.body.order.total, 0.3); assert.equal(res.body.order.items[0].price, 0.1);
   assert.equal(res.body.order.shippingAddress.street, 'rue'); assert.equal(res.body.order.shippingAddress.country, 'France');
@@ -68,14 +74,16 @@ test('order schema rejects negative prices and fractional quantities', () => {
 test('stock accepts numeric zero and UI string zero as integers', async () => {
   for (const stock of [0, '0', '12', 12]) {
     const product = new Product({ name: 'test', price: 1, description: 'test', stock: 5 });
-    Product.findById = async () => product; Product.prototype.save = async function () { return this; };
+    Product.findOneAndUpdate = async (filter, update, options) => {
+      assert.equal(options.runValidators, true); product.stock = update.$set.stock; return product;
+    };
     const res = response(); await products.updateProductStock({ params: { productId: id }, body: { stock } }, res);
     assert.equal(res.code, 200); assert.equal(res.body.product.stock, Number(stock));
   }
 });
 
 test('stock rejects non-integers, invalid types and ids before database access', async () => {
-  Product.findById = () => assert.fail('must not query');
+  Product.findOneAndUpdate = () => assert.fail('must not query');
   for (const stock of [null, undefined, '', ' ', true, [], {}, NaN, Infinity, -1, 1.5, '1.5', '-1', Number.MAX_SAFE_INTEGER + 1]) {
     const res = response(); await products.updateProductStock({ params: { productId: id }, body: { stock } }, res); assert.equal(res.code, 400);
   }
@@ -83,14 +91,19 @@ test('stock rejects non-integers, invalid types and ids before database access',
 });
 
 test('status accepts only schema values and enables update validators', async () => {
-  Order.findByIdAndUpdate = async (orderId, update, options) => {
-    assert.equal(orderId, id); assert.equal(update.status, 'Expédiée'); assert.equal(options.runValidators, true); return { _id: id };
+  Order.findOne = async () => ({ _id: id, status: 'En cours de traitement' });
+  Order.findOneAndUpdate = async (filter, update, options) => {
+    assert.equal(filter._id, id); assert.equal(update.$set.status, 'Expédiée'); assert.equal(options.runValidators, true); return { _id: id };
   };
+  const lifecycle = require('../services/orderLifecycle');
+  const originalDiscard = lifecycle.discardMarkers; lifecycle.discardMarkers = async () => {};
+  try {
   const good = response(); await orders.updateOrderStatus({ params: { orderId: id }, body: { status: 'Expédiée' } }, good); assert.equal(good.code, 200);
-  Order.findByIdAndUpdate = () => assert.fail('must not update');
+  Order.findOneAndUpdate = () => assert.fail('must not update');
   for (const status of ['unexpected', { $ne: null }, '', ['Expédiée']]) {
     const res = response(); await orders.updateOrderStatus({ params: { orderId: id }, body: { status } }, res); assert.equal(res.code, 400);
   }
+  } finally { lifecycle.discardMarkers = originalDiscard; }
 });
 
 test('catalog/order read failures produce controlled responses', async () => {

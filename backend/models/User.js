@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
   role: { type: String, default: 'user' }, // Peut être 'user' ou 'admin'
 });
 
+userSchema.index({ username: 1 }, { name: 'username_case_insensitive', unique: true, collation: { locale: 'fr', strength: 2 } });
+
 // Middleware pour hasher le mot de passe avant sauvegarde
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

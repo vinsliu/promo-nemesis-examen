@@ -22,6 +22,12 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    const password = formData.password;
+    if (!password.trim() || new TextEncoder().encode(password).length < 8 || new TextEncoder().encode(password).length > 72) {
+      setError('Le mot de passe doit contenir de 8 à 72 octets UTF-8.');
+      return;
+    }
     try {
       await axios.post(`${API_BASE_URL}/auth/register`, formData);
       alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
@@ -30,11 +36,11 @@ const Register = () => {
       if (err.response) {
         // Erreur renvoyée par le serveur
         const { message } = err.response.data;
-        alert(message); // Affiche un message à l'utilisateur (vous pouvez remplacer par un toast)
+        setError(message);
       } else {
         // Erreur réseau ou autre
         console.error("Erreur réseau ou serveur");
-        alert("Une erreur est survenue. Veuillez réessayer.");
+        setError("Une erreur est survenue. Veuillez réessayer.");
       }
       //setError('Une erreur est survenue lors de la création du compte.');
     }
@@ -48,6 +54,9 @@ const Register = () => {
         <input
           type="text"
           name="username"
+          required
+          maxLength={100}
+          autoComplete="username"
           placeholder="Nom d'utilisateur"
           value={formData.username}
           onChange={handleChange}
@@ -56,6 +65,9 @@ const Register = () => {
         <input
           type="email"
           name="email"
+          required
+          maxLength={254}
+          autoComplete="email"
           placeholder="Adresse email"
           value={formData.email}
           onChange={handleChange}
@@ -64,11 +76,17 @@ const Register = () => {
         <input
           type="password"
           name="password"
+          required
+          autoComplete="new-password"
+          aria-describedby="password-help"
           placeholder="Mot de passe"
           value={formData.password}
           onChange={handleChange}
           className="border border-gray-300 p-2 w-full mb-4"
         />
+        <p id="password-help" className="text-sm text-gray-600 mb-4">
+          De 8 à 72 octets UTF-8 (les caractères accentués peuvent compter pour plusieurs octets).
+        </p>
         <button type="submit" className="bg-blue-500 text-white p-2 w-full rounded">S'inscrire</button>
       </form>
     </div>

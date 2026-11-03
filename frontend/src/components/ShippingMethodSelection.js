@@ -1,12 +1,8 @@
+import { shippingOptions } from '../services/checkoutOptions';
 import { useCart } from '../context/CartContext';
 
  const ShippingMethodSelection = () => {
   const { shippingMethod, dispatch } = useCart();
-  const shippingOptions = [
-    { value: 'colissimo', label: 'Colissimo' },
-    { value: 'chronopost', label: 'Chronopost' },
-  ];
-
   const handleShippingChange = (event) => {
     dispatch({ type: 'SET_SHIPPING_METHOD', payload: event.target.value });
   };

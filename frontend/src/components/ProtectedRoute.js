@@ -1,13 +1,9 @@
-// src/components/ProtectedRoute.js
 import React from 'react';
-import { Navigate } from 'react-router-dom';
-
+import { Navigate, useLocation } from 'react-router-dom';
+import { useSession } from '../services/session';
 const ProtectedRoute = ({ children }) => {
-    const isAuthenticated = localStorage.getItem('token'); // Vérifiez le token de connexion
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
-    return children;
+  const session = useSession();
+  const location = useLocation();
+  return session ? children : <Navigate to="/login" state={{ returnTo: location.pathname }} replace />;
 };
-
 export default ProtectedRoute;

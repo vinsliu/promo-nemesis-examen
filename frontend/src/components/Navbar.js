@@ -1,6 +1,7 @@
 // src/components/Navbar.js
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSession, clearSession } from '../services/session';
 import { useCart } from '../context/CartContext';
 
 const Navbar = () => {
@@ -8,13 +9,13 @@ const Navbar = () => {
   const { cart } = useCart();
 
   // Simuler l'état d'authentification avec le localStorage
-  const isAuthenticated = !!localStorage.getItem('token');
-  const username = localStorage.getItem('username'); // Récupère le nom d'utilisateur si connecté
+  const session = useSession();
+  const isAuthenticated = !!session;
+  const username = session?.username; // Récupère le nom d'utilisateur si connecté
 
   const handleLogout = () => {
     // Supprimer les informations d'authentification
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
+    clearSession();
     navigate('/login');
   };
 
@@ -37,11 +38,12 @@ const Navbar = () => {
           <span>Panier</span>
           {cart.length > 0 && (
             <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full text-xs px-2">
-              {cart.length}
+              {cart.reduce((total, item) => total + item.quantity, 0)}
             </span>
           )}
         </Link>
         
+        {session?.role === 'admin' && <Link to='/admin'>Administration</Link>}
         {/* Lien Connexion / Déconnexion */}
         {!isAuthenticated ? (
           <>

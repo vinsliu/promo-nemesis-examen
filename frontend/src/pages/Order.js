@@ -1,20 +1,25 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { getOrderAttempt, clearOrderAttempt } from '../services/orderAttempt';
+import { getSession } from '../services/session';
 import { createOrder } from "../services/api";
 
 const Order = () => {
   const navigate = useNavigate();
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   //recuperer le context panier
   const { cart, shippingAddress, paymentMethod, shippingMethod, dispatch } =
     useCart(); // Récupérer le contenu du panier à partir du contexte
   // Naviguer vers la page de commande
   const handleShippingPage = () => {
-    navigate("/shippig_payment");
+    navigate("/shipping-payment");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting.current) return;
 
     // Vérifier les champs manquants
     const missingFields = [];
@@ -35,7 +40,7 @@ const Order = () => {
     // Vérifier le détail de l'adresse de livraison
     const requiredAddressFields = ["street", "postalCode", "city", "country"];
     const missingAddressDetails = requiredAddressFields.filter(
-      (field) => !shippingAddress[field]
+      (field) => typeof shippingAddress[field] !== 'string' || !shippingAddress[field].trim()
     );
 
     if (missingAddressDetails.length > 0) {
@@ -47,6 +52,9 @@ const Order = () => {
       return;
     }
 
+    let attempt;
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
       // Créer la commande seulement si toutes les vérifications passent
       const orderDetails = {
@@ -56,23 +64,30 @@ const Order = () => {
           price: item.price,
         })),
         total: cart.reduce((acc, item) => acc + item.price * item.quantity, 0),
-        shippingAddress,
+        shippingAddress: Object.fromEntries(['street', 'city', 'postalCode', 'country'].map(field => [field, shippingAddress[field].trim()])),
         paymentMethod,
         shippingMethod,
       };
 
-      const response = await createOrder(orderDetails);
+      attempt = await getOrderAttempt(orderDetails, getSession()?.userId);
+      const response = await createOrder(orderDetails, attempt);
 
       if (response.error) {
         alert(`Erreur : ${response.message || "Échec de la commande"}`);
         return;
       }
 
-      dispatch({ type: "CLEAR_CART" });
+      clearOrderAttempt(attempt);
+      dispatch({ type: "CLEAR_CART", payload: JSON.stringify(cart.map(({ id, quantity }) => ({ id, quantity }))) });
       alert("Commande confirmée avec succès !");
     } catch (error) {
       console.error("Erreur lors de la commande");
-      alert("Une erreur technique est survenue. Veuillez réessayer.");
+      const status = error.response?.status;
+      if (status === 400 || status === 410 || (status === 409 && error.response?.data?.code !== 'ORDER_PENDING')) clearOrderAttempt(attempt);
+      alert(error.response?.data?.message || "La confirmation n'a pas été reçue. Réessayez sans modifier le panier pour retrouver la même commande.");
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -186,9 +201,10 @@ const Order = () => {
           <div className="flex justify-end mt-4">
             <button
               onClick={handleSubmit}
+              disabled={isSubmitting}
               className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
             >
-              Confirmer la commande
+              {isSubmitting ? "Confirmation en cours…" : "Confirmer la commande"}
             </button>
           </div>
         </div>
