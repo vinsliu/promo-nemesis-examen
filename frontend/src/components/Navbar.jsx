@@ -39,7 +39,7 @@ const Navbar = () => {
         <Link to="/cart" className="relative">
           <span>Panier</span>
           {cart.length > 0 && (
-            <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full text-xs px-2">
+            <span className="absolute -top-3 -right-4 flex h-5 min-w-[1.25rem] items-center justify-center bg-red-500 text-white rounded-full text-xs font-bold px-1" aria-label="Articles dans le panier">
               {cart.reduce((total, item) => total + item.quantity, 0)}
             </span>
           )}

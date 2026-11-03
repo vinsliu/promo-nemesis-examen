@@ -62,7 +62,7 @@ const Cart = () => {
                 <tr key={item.id}>
                   <td className="border border-gray-300 p-2">{item.name}</td>
                   <td className="border border-gray-300 p-2">{item.price}</td>
-                  <td className="border border-gray-300 p-2 flex items-center justify-center">
+                  <td className="border border-gray-300 p-2"><div className="flex items-center justify-center">
                     <button
                       onClick={() => decrementQuantity(item.id)}
                       className="bg-gray-300 px-2 py-1 rounded-l"
@@ -81,7 +81,7 @@ const Cart = () => {
                     >
                       +
                     </button>
-                  </td>
+                  </div></td>
                   <td className="border border-gray-300 p-2">
                     {(item.price * item.quantity).toFixed(2)}
                   </td>
