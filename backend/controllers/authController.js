@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const audit = require('../audit');
 const usernameCollation = { locale: 'fr', strength: 2 };
 require('dotenv').config();
 
@@ -29,10 +30,14 @@ exports.login = async (req, res) => {
   try {
     const user = await User.findOne({ username }).collation(usernameCollation);
     const isMatch = await bcrypt.compare(password, user ? user.password : dummyPasswordHash);
-    if (!user || !isMatch) return res.status(401).json(invalidCredentials);
+    if (!user || !isMatch) {
+      audit(req, 'login', 'failure');
+      return res.status(401).json(invalidCredentials);
+    }
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET,
       { algorithm: 'HS256', expiresIn: '1h' });
     res.cookie('token', token, cookieOptions);
+    audit(req, 'login', 'success', { actorId: String(user._id) });
     return res.json({ role: user.role, username: user.username, userId: String(user._id),
       expiresAt: Date.now() + cookieOptions.maxAge });
   } catch {
@@ -54,10 +59,14 @@ exports.register = async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedUsername = username.trim().toLowerCase();
     const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username: normalizedUsername }] }).collation(usernameCollation);
-    if (existingUser) return res.status(409).json(duplicateAccount);
+    if (existingUser) {
+      audit(req, 'register', 'duplicate');
+      return res.status(409).json(duplicateAccount);
+    }
     // Never accept a client-supplied role.
     const user = new User({ username: normalizedUsername, email: normalizedEmail, password });
     await user.save();
+    audit(req, 'register', 'success', { actorId: String(user._id) });
     return res.status(201).json({ message: 'Utilisateur créé avec succès.' });
   } catch (error) {
     if (error.code === 11000) return res.status(409).json(duplicateAccount);
@@ -68,6 +77,7 @@ exports.register = async (req, res) => {
 exports.logout = (req, res) => {
   const { maxAge, ...clearOptions } = cookieOptions;
   res.clearCookie('token', clearOptions);
+  audit(req, 'logout', 'success');
   return res.status(204).end();
 };
 

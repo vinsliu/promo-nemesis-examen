@@ -2,6 +2,7 @@ const { logger } = require('../logger');
 const { createHash } = require('node:crypto');
 const lifecycle = require('../services/orderLifecycle');
 const notify = require('../services/notifications');
+const audit = require('../audit');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const validId = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
@@ -91,6 +92,7 @@ exports.createOrder = async (req, res) => {
     } catch {
       (req.log || logger).error('Échec de la notification de commande');
     }
+    audit(req, 'order_create', 'success', { targetId: String(savedOrder._id) });
     return res.status(201).json({ message: 'Commande créée avec succès', order: lifecycle.publicOrder(savedOrder) });
   } catch (error) {
     if (pendingOrder) {
@@ -125,6 +127,7 @@ exports.deleteOrder = async (req, res) => {
       { $set: { lifecycle: 'releasing', releaseTarget: 'deleted' } }, { new: true });
     if (!claimed) return res.status(409).json({ message: 'Commande en cours de modification.' });
     await lifecycle.release(claimed);
+    audit(req, 'order_delete', 'success', { targetId: id });
     return res.status(204).end();
   } catch {
     return res.status(503).json({ message: 'Suppression interrompue ; une récupération est nécessaire.' });
@@ -168,6 +171,7 @@ async function changeStatus(req, res, orderId, status) {
     if (!order) return res.status(409).json({ message: 'Commande en cours de modification.' });
     if (cancelling) order = await lifecycle.release(order);
     else if (['Expédiée', 'Délivrée'].includes(status)) await lifecycle.discardMarkers(order);
+    audit(req, 'order_status', 'success', { targetId: orderId, status });
     return res.json({ message: 'Statut mis à jour avec succès', order: lifecycle.publicOrder(order) });
   } catch {
     return res.status(503).json({ message: 'Mise à jour interrompue ; une récupération peut être nécessaire.' });

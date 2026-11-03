@@ -7,7 +7,7 @@ function createLogger({ level = process.env.LOG_LEVEL, destination } = {}) {
   const allowed = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
   return pino({
     level: allowed.includes(level) ? level : 'info',
-    base: { service: SERVICE },
+    base: { service: SERVICE, env: process.env.APP_ENV || process.env.NODE_ENV || 'development' },
     redact: { paths: ['password', 'token', 'secret', 'authorization', 'cookie', 'email', 'apiKey',
       'body', 'headers', '*.headers', 'shippingAddress', 'req.body', 'req.headers', 'headers.authorization', 'headers.cookie',
       '*.password', '*.token', '*.secret', '*.email', '*.apiKey'], censor: '[REDACTED]' },

@@ -1,3 +1,4 @@
+const audit = require('../audit');
 const Product = require('../models/Product');
 
 exports.getProducts = async (req, res) => {
@@ -27,6 +28,7 @@ exports.updateProductStock = async (req, res) => {
       const exists = await Product.exists({ _id: productId });
       return res.status(exists ? 409 : 404).json({ message: exists ? 'Stock trop élevé compte tenu des réservations.' : 'Produit non trouvé.' });
     }
+    audit(req, 'stock_update', 'success', { targetId: productId, stock: numericStock });
     return res.json({ message: 'Stock mis à jour avec succès.', product });
   } catch {
     return res.status(500).json({ message: 'Erreur serveur.' });
