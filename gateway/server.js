@@ -3,7 +3,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 //const authProxy = require('./routes/auth');
 const notifiProxy = require('./routes/notifi');
-const stockProxy = require('./routes/stock');
+// const stockProxy = require('./routes/stock');
 
 dotenv.config();
 
@@ -16,7 +16,7 @@ app.use(express.json());
 //app.use('/auth', authProxy);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/notify', notifiProxy);
-app.use('/update-stock', stockProxy);
+// app.use('/update-stock', stockProxy);
 
 // Lancer le Gateway
 const PORT = process.env.PORT || process.env.GATEWAY_PORT || 8000;
