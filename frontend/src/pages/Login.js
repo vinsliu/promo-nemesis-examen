@@ -1,8 +1,8 @@
-import { API_BASE_URL } from '../services/config';
 // src/pages/Login.js
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import client from "../services/client";
+import { saveSession } from "../services/session";
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -15,18 +15,9 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/auth/login`,
-        credentials
-      );
-      const { token, role, username } = response.data;
-
-      // Stockage du token et rôle dans le localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("username", username);
-      localStorage.setItem("role", role);
-
-      window.dispatchEvent(new Event('session-change'));
+      // Le jeton est posé par le serveur dans un cookie HttpOnly.
+      const response = await client.post("/auth/login", credentials);
+      saveSession(response.data);
       const returnTo = location.state?.returnTo;
       navigate(typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') && !returnTo.includes('\\') ? returnTo : '/', { replace: true }); // Redirige vers la page d'accueil après la connexion
     } catch (error) {

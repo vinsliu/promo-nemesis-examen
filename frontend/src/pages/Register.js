@@ -1,8 +1,7 @@
-import { API_BASE_URL } from '../services/config';
 // src/pages/Register.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import client from '../services/client';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -30,7 +29,7 @@ const Register = () => {
       return;
     }
     try {
-      await axios.post(`${API_BASE_URL}/auth/register`, formData);
+      await client.post('/auth/register', formData);
       alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
       navigate('/login');
     } catch (err) {

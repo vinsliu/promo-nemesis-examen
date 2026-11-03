@@ -52,7 +52,7 @@ test('catalogue offers retry after failure and disables exhausted products', asy
   expect(await screen.findByRole('button', { name: 'Rupture de stock' })).toBeDisabled();
 });
 test('expired session redirects to login while preserving the requested location', async () => {
-  localStorage.setItem('token', `header.${btoa(JSON.stringify({ exp: 1, userId: id, role: 'user' }))}.signature`);
+  localStorage.setItem('session', JSON.stringify({ expiresAt: 1, userId: id, username: 'u', role: 'user' }));
   render(<MemoryRouter initialEntries={['/order']}><Routes><Route path="/order" element={<ProtectedRoute><p>Protected</p></ProtectedRoute>} />
     <Route path="/login" element={<p>Connexion nécessaire</p>} /></Routes></MemoryRouter>);
   expect(await screen.findByText('Connexion nécessaire')).toBeInTheDocument(); expect(screen.queryByText('Protected')).not.toBeInTheDocument();
@@ -108,14 +108,12 @@ test.each([[false, 'colissimo', 'Carte bancaire'], [true, 'chronopost', 'PayPal'
 
 test('session expiry clears stored credentials and updates the mounted interface', () => {
   jest.useFakeTimers();
-  const exp = Math.floor(Date.now() / 1000) + 1;
-  localStorage.setItem('token', `header.${btoa(JSON.stringify({ exp, userId: id, role: 'admin' }))}.signature`);
-  localStorage.setItem('username', 'Admin'); localStorage.setItem('role', 'admin');
+  localStorage.setItem('session', JSON.stringify({ expiresAt: Date.now() + 1000, userId: id, username: 'Admin', role: 'admin' }));
   function SessionProbe() { const session = useSession(); return <p>{session ? session.username : 'Session terminée'}</p>; }
   const view = render(<SessionProbe />);
   expect(screen.getByText('Admin')).toBeInTheDocument();
   act(() => { jest.advanceTimersByTime(2000); });
   expect(screen.getByText('Session terminée')).toBeInTheDocument();
-  expect(localStorage.getItem('token')).toBeNull(); expect(localStorage.getItem('role')).toBeNull();
+  expect(localStorage.getItem('session')).toBeNull();
   view.unmount(); jest.useRealTimers();
 });

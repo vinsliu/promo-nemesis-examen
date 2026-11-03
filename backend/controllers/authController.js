@@ -4,6 +4,11 @@ const User = require('../models/User');
 const usernameCollation = { locale: 'fr', strength: 2 };
 require('dotenv').config();
 
+// Cookie HttpOnly : inaccessible au JavaScript, donc non volable par XSS.
+// COOKIE_SAMESITE=none (front et API sur des sites différents) impose Secure.
+const sameSite = ['strict', 'lax', 'none'].includes(process.env.COOKIE_SAMESITE) ? process.env.COOKIE_SAMESITE : 'strict';
+const cookieOptions = { httpOnly: true, sameSite, secure: sameSite === 'none' || process.env.NODE_ENV === 'production',
+  maxAge: 60 * 60 * 1000, path: '/' };
 const invalidCredentials = { message: 'Identifiants incorrects.' };
 const duplicateAccount = { message: "Cet email ou ce nom d'utilisateur est déjà utilisé." };
 // Compare even for an unknown account to avoid a cheap account-existence timing signal.
@@ -27,7 +32,9 @@ exports.login = async (req, res) => {
     if (!user || !isMatch) return res.status(401).json(invalidCredentials);
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET,
       { algorithm: 'HS256', expiresIn: '1h' });
-    return res.json({ token, role: user.role, username: user.username });
+    res.cookie('token', token, cookieOptions);
+    return res.json({ role: user.role, username: user.username, userId: String(user._id),
+      expiresAt: Date.now() + cookieOptions.maxAge });
   } catch {
     return res.status(500).json({ message: 'Erreur serveur' });
   }
@@ -44,7 +51,7 @@ exports.register = async (req, res) => {
   }
 
   try {
-    const normalizedEmail = email.trim();
+    const normalizedEmail = email.trim().toLowerCase();
     const normalizedUsername = username.trim().toLowerCase();
     const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username: normalizedUsername }] }).collation(usernameCollation);
     if (existingUser) return res.status(409).json(duplicateAccount);
@@ -55,5 +62,22 @@ exports.register = async (req, res) => {
   } catch (error) {
     if (error.code === 11000) return res.status(409).json(duplicateAccount);
     return res.status(500).json({ message: 'Une erreur est survenue.' });
+  }
+};
+
+exports.logout = (req, res) => {
+  const { maxAge, ...clearOptions } = cookieOptions;
+  res.clearCookie('token', clearOptions);
+  return res.status(204).end();
+};
+
+// L'état de la session vient de la base : un rôle retiré ou un compte supprimé prend effet immédiatement.
+exports.me = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('username role');
+    if (!user) return res.status(401).json({ message: 'Session invalide.' });
+    return res.json({ userId: String(user._id), username: user.username, role: user.role });
+  } catch {
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 };

@@ -4,9 +4,9 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
-  role: { type: String, default: 'user' }, // Peut être 'user' ou 'admin'
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
 });
 
 userSchema.index({ username: 1 }, { name: 'username_case_insensitive', unique: true, collation: { locale: 'fr', strength: 2 } });
