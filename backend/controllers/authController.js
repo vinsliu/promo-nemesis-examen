@@ -1,3 +1,6 @@
+/**
+ * @module controllers/authController
+ */
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
@@ -17,6 +20,13 @@ const dummyPasswordHash = bcrypt.hashSync('unused-authentication-password', 10);
 const validText = (value, max) => typeof value === 'string' &&
   value.trim().length > 0 && value.length <= max;
 
+/**
+ * Authentifie un utilisateur et pose le jeton JWT dans un cookie HttpOnly.
+ * Répond 401 avec le même message pour un compte inconnu ou un mauvais mot de passe.
+ * @param {express.Request} req - `body` : `{ username, password }`.
+ * @param {express.Response} res - 200 `{ role, username, userId, expiresAt }`.
+ * @returns {Promise<void>}
+ */
 exports.login = async (req, res) => {
   const { username, password } = req.body || {};
   if (!validText(username, 100) || !validText(password, 1024) ||
@@ -45,6 +55,13 @@ exports.login = async (req, res) => {
   }
 };
 
+/**
+ * Crée un compte avec le rôle `user` (le rôle n'est jamais lu dans la requête).
+ * Le mot de passe exige 12 caractères, majuscule, minuscule, chiffre et caractère spécial.
+ * @param {express.Request} req - `body` : `{ username, email, password }`.
+ * @param {express.Response} res - 201 si créé, 409 si doublon, 400 si invalide.
+ * @returns {Promise<void>}
+ */
 exports.register = async (req, res) => {
   const { username, email, password } = req.body || {};
   if (!validText(username, 100) || !validText(email, 254) ||
@@ -74,6 +91,12 @@ exports.register = async (req, res) => {
   }
 };
 
+/**
+ * Efface le cookie de session.
+ * @param {express.Request} req
+ * @param {express.Response} res - 204.
+ * @returns {void}
+ */
 exports.logout = (req, res) => {
   const { maxAge, ...clearOptions } = cookieOptions;
   res.clearCookie('token', clearOptions);
@@ -82,6 +105,12 @@ exports.logout = (req, res) => {
 };
 
 // L'état de la session vient de la base : un rôle retiré ou un compte supprimé prend effet immédiatement.
+/**
+ * Retourne l'utilisateur de la session, relu en base (rôle à jour).
+ * @param {express.Request} req - Nécessite `authenticateToken`.
+ * @param {express.Response} res - 200 `{ userId, username, role }` ou 401.
+ * @returns {Promise<void>}
+ */
 exports.me = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('username role');

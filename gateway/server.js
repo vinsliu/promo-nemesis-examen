@@ -1,3 +1,6 @@
+/**
+ * @module gateway
+ */
 // gateway/server.js
 const express = require('express');
 const dotenv = require('dotenv');
@@ -8,6 +11,12 @@ const notifiProxy = require('./routes/notifi');
 dotenv.config();
 const { logger, requestLogging, errorHandler } = require('./logger');
 
+/**
+ * Construit la gateway : relaie `/notify` vers le service de notifications (jeton interne requis).
+ * @param {object} [options]
+ * @param {object} [options.log] - Logger Pino.
+ * @returns {express.Express}
+ */
 function createApp({ log = logger } = {}) {
 const app = express();
 app.use(requestLogging(log));

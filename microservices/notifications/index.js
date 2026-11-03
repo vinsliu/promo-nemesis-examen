@@ -1,9 +1,22 @@
+/**
+ * @module notifications
+ */
 require('dotenv').config();
 const { logger, requestLogging, errorHandler } = require('./logger');
 const express = require('express');
 const nodemailer = require('nodemailer');
 const { timingSafeEqual } = require('node:crypto');
 
+/**
+ * Construit le service de notifications (`POST /notify`, protégé par `INTERNAL_API_TOKEN`).
+ * Fournisseurs : `smtp` (Gmail) ou `resend`.
+ * @param {object} [options]
+ * @param {object} [options.env] - Variables d'environnement.
+ * @param {function} [options.fetchEmail] - `fetch` injectable (API Resend).
+ * @param {function} [options.createTransport] - Fabrique de transport nodemailer.
+ * @param {object} [options.log] - Logger Pino.
+ * @returns {express.Express}
+ */
 function createApp({ env = process.env, fetchEmail = globalThis.fetch, createTransport = nodemailer.createTransport, log = logger } = {}) {
   const app = express();
   app.use(requestLogging(log));

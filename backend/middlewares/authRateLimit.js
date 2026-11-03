@@ -1,4 +1,16 @@
+/**
+ * @module middlewares/authRateLimit
+ */
 // Process-local protection. Use a shared store when running several backend instances.
+/**
+ * Crée un limiteur de tentatives en mémoire, par adresse du socket.
+ * @param {object} options
+ * @param {number} options.limit - Requêtes autorisées par fenêtre.
+ * @param {number} [options.windowMs=900000] - Durée de la fenêtre.
+ * @param {number} [options.maxEntries=10000] - Nombre maximal d'adresses suivies.
+ * @param {function(): number} [options.now] - Horloge injectable pour les tests.
+ * @returns {express.RequestHandler} Répond 429 avec `Retry-After` au-delà de la limite.
+ */
 function createAuthRateLimit({ limit, windowMs = 15 * 60 * 1000, maxEntries = 10000, now = Date.now }) {
   const attempts = new Map();
   return (req, res, next) => {

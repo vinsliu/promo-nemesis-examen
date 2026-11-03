@@ -1,3 +1,6 @@
+/**
+ * @module server
+ */
 // server.js
 const express = require('express');
 const cors = require('cors');
@@ -8,6 +11,12 @@ const { logger, requestLogging, errorHandler } = require('./logger');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 
+/**
+ * Construit l'application Express (helmet, CORS en liste blanche, cookies, routes, erreurs JSON).
+ * @param {object} [options]
+ * @param {object} [options.log] - Logger Pino injectable pour les tests.
+ * @returns {express.Express}
+ */
 function createApp({ log = logger } = {}) {
   const app = express();
   const allowedOrigins = process.env.CORS_ORIGIN

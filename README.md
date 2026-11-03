@@ -80,7 +80,7 @@ Application : http://localhost:3000. Arrêt : `Ctrl + C`.
 
 ## Authentification
 
-Les nouvelles inscriptions demandent un nom non vide (100 caractères maximum),
+Les nouvelles inscriptions demandent un nom de 3 à 30 caractères,
 un email valide (254 caractères maximum) et un mot de passe d'au moins 12 caractères,
 avec une majuscule, une minuscule, un chiffre et un caractère spécial, dans la limite
 de 72 octets UTF-8. Cette limite évite la troncature silencieuse de bcrypt ; les mots
@@ -103,6 +103,34 @@ partagent donc le quota de ce proxy. Ce limiteur en mémoire est adapté au
 démarrage local sur une instance ; pour la production, prévoir un stockage partagé
 et une identification de l'adresse client fondée sur des proxies explicitement
 autorisés. Un redémarrage réinitialise les compteurs.
+
+### Session, CORS et validation
+
+Le jeton JWT (1 h) est posé par le serveur dans un cookie `token` **HttpOnly**, `SameSite=Strict`
+et `Secure` en production : le JavaScript du navigateur ne peut pas le lire, ce qui limite l'effet
+d'une faille XSS. Le front ne conserve en `localStorage` que des informations d'affichage
+(nom, rôle, expiration). Les routes `POST /api/auth/logout` et `GET /api/auth/me` ferment et relisent
+la session (le rôle vient de la base). Pour les requêtes qui modifient des données, le serveur
+exige l'en-tête `X-Requested-With: XMLHttpRequest` (protection CSRF) ; le client axios l'envoie.
+L'en-tête `Authorization: Bearer` reste accepté pour les clients d'API.
+
+Toutes les entrées (inscription, connexion, commande, statut, stock) sont validées avec
+[Joi](https://joi.dev/) (`backend/validation/schemas.js`) ; les champs inconnus sont supprimés.
+Les corps JSON sont limités à 10 ko.
+
+Variables du backend à définir sur chaque environnement (préproduction et production) :
+
+| Variable | Rôle |
+| --- | --- |
+| `NODE_ENV=production` | Cookie `Secure`, pas de détail d'erreur. Aussi en préproduction. |
+| `CORS_ORIGIN` | URL du front avec `https://`, sans `/` final ; plusieurs valeurs séparées par des virgules. En production sans valeur, aucune origine croisée n'est acceptée. |
+| `COOKIE_SAMESITE` | `strict` (défaut) ; `none` si le front et l'API sont sur des sites différents (impose `Secure`). |
+| `JWT_SECRET` | 32 caractères minimum, différent entre préproduction et production. |
+| `APP_ENV` | `preprod` ou `production`, ajouté aux logs (sinon `NODE_ENV`). |
+| `LOG_LEVEL` | Niveau des logs Pino (`info` par défaut). |
+
+Le seed `backend/seeder.js` supprime les produits : il refuse de tourner avec `NODE_ENV=production`
+sauf option `--force`.
 
 Tests du lot authentification, sans base de données ni email :
 
@@ -367,3 +395,38 @@ Les deux tests d'intégration sont ignorés sans cette variable. Ils créent et
 suppriment uniquement leurs fixtures. Ne pas exécuter d'autres requêtes métier
 sur cette base pendant les tests de récupération : ils simulent un démarrage.
 Les notifications sont simulées ; aucun email n'est envoyé par ces tests.
+
+## Journalisation et audit
+
+Chaque service Node écrit des logs JSON avec [Pino](https://getpino.io/) (`logger.js`) : service, environnement
+(`env`), niveau (`LOG_LEVEL`), identifiant de requête (`X-Request-Id`), méthode, route et code de réponse.
+Mots de passe, jetons, cookies, e-mails, adresses, en-têtes et corps de requête ne sont jamais écrits.
+
+Les actions sensibles du backend sont tracées par `backend/audit.js` avec `"type":"audit"` : connexion
+(succès, échec), inscription, déconnexion, création de commande, changement de statut, suppression de
+commande et modification de stock. Chaque événement porte l'action, le résultat, l'identifiant de requête,
+l'utilisateur concerné (`actorId`) et la cible (`targetId`), sans donnée personnelle. Pour les consulter,
+filtrer les logs Render ou Docker sur `"type":"audit"`.
+
+## Qualité du code
+
+```bash
+npm run lint          # ESLint (backend, gateway, microservices)
+npm run format:check  # Prettier (vérification)
+```
+
+Le frontend garde sa configuration ESLint propre. Les tests : `npm --prefix backend test`,
+`npm --prefix frontend test` et `node --test microservices/notifications/index.test.js`.
+
+## Documentation du code
+
+Les fonctions du backend, de la gateway, des microservices et du service de session du front sont
+documentées en JSDoc. La documentation de référence est générée dans [`docs/API.md`](docs/API.md) :
+
+```bash
+npm run docs
+```
+
+Relancer cette commande et commiter `docs/API.md` après toute modification des commentaires JSDoc.
+Le journal des évolutions est dans [`CHANGELOG.md`](CHANGELOG.md) ; le rapport d'audit sécurité et
+robustesse est dans [`audit/AUDIT-SECURITE-ROBUSTESSE.md`](audit/AUDIT-SECURITE-ROBUSTESSE.md).

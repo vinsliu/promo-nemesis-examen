@@ -1,3 +1,6 @@
+/**
+ * @module context/CartContext
+ */
 import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import { defaultShippingMethod, defaultPaymentMethod } from '../services/checkoutOptions';
 const CartContext = createContext();
@@ -19,6 +22,7 @@ function restore() {
     return { ...initialState, cart };
   } catch { return initialState; }
 }
+/** Réducteur du panier : ajout, quantité, suppression, vidage, livraison et paiement. */
 export function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD_TO_CART': {
@@ -47,6 +51,7 @@ export function cartReducer(state, action) {
     default: return state;
   }
 }
+/** Fournit le panier (persisté en localStorage, validé à la relecture) à l'application. */
 export function CartProvider({ children }) {
   const [state, dispatch] = useReducer(cartReducer, undefined, restore);
   useEffect(() => {

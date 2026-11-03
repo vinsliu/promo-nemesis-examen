@@ -1,7 +1,15 @@
+/**
+ * @module middlewares/authMiddleware
+ */
 const jwt = require('jsonwebtoken');
 
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
+/**
+ * Vérifie le JWT (cookie HttpOnly, sinon en-tête Bearer) et renseigne `req.user`.
+ * Pour un cookie, exige `X-Requested-With: XMLHttpRequest` sur les méthodes modifiantes (CSRF).
+ * @type {express.RequestHandler}
+ */
 exports.authenticateToken = (req, res, next) => {
   const authorization = req.headers.authorization;
   const cookieToken = req.cookies?.token;
@@ -34,6 +42,10 @@ exports.authenticateToken = (req, res, next) => {
   return next();
 };
 
+/**
+ * Autorise uniquement le rôle `admin` ; à placer après `authenticateToken`.
+ * @type {express.RequestHandler}
+ */
 exports.isAdmin = (req, res, next) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Accès interdit' });
   return next();

@@ -1,17 +1,33 @@
+/**
+ * @module services/orderLifecycle
+ */
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
+/** Filtre Mongo des commandes visibles (cycle de vie actif). @type {object} */
 const visible = { $or: [{ lifecycle: 'active' }, { lifecycle: { $exists: false } }] };
+/** Transitions de statut autorisées, par statut courant. @type {Object<string,string[]>} */
 const transitions = {
   'En attente': ['En cours de traitement', 'Annulée'],
   'En cours de traitement': ['Expédiée', 'Annulée'],
   'Expédiée': ['Délivrée'], 'Délivrée': [], 'Annulée': [],
 };
+/**
+ * Retire les champs internes (clé d'idempotence, cycle de vie…) avant d'envoyer une commande au client.
+ * @param {object} order - Document Mongoose ou objet simple.
+ * @returns {object}
+ */
 function publicOrder(order) {
   const value = typeof order.toObject === 'function' ? order.toObject() : { ...order };
   for (const key of ['idempotencyKey', 'requestHash', 'lifecycle', 'releaseTarget', 'failureMessage']) delete value[key];
   return value;
 }
+/**
+ * Réserve le stock de chaque ligne, de façon atomique par produit.
+ * @param {object} order
+ * @throws {Error} Erreur `status: 409` si le stock est insuffisant.
+ * @returns {Promise<void>}
+ */
 async function reserve(order) {
   for (const item of order.items) {
     const path = `reservations.${order._id}`;
@@ -21,6 +37,11 @@ async function reserve(order) {
   }
 }
 // Marker and stock change are in the same product document: compensation is repeatable.
+/**
+ * Restitue le stock réservé (opération répétable) puis termine le cycle de vie de la commande.
+ * @param {object} order - Commande au cycle de vie `releasing`.
+ * @returns {Promise<object>} La commande mise à jour.
+ */
 async function release(order) {
   for (const item of order.items) {
     const path = `reservations.${order._id}`;
@@ -34,12 +55,21 @@ async function release(order) {
     { $set: { lifecycle: order.releaseTarget || 'failed' }, $unset: { releaseTarget: '' } }, { new: true });
   return completed || Order.findById(order._id);
 }
+/**
+ * Supprime les marqueurs de réservation d'une commande expédiée (le stock n'est jamais rendu).
+ * @param {object} order
+ * @returns {Promise<void>}
+ */
 async function discardMarkers(order) {
   for (const item of order.items) {
     await Product.updateOne({ _id: item.productId }, { $unset: { [`reservations.${order._id}`]: '' } });
   }
 }
 // Run before listening, with exactly one backend instance. Never recover live requests.
+/**
+ * Termine les commandes interrompues. À lancer avant l'écoute, avec une seule instance.
+ * @returns {Promise<void>}
+ */
 async function recoverOrders() {
   const unfinished = await Order.find({ lifecycle: { $in: ['creating', 'releasing'] } });
   for (let order of unfinished) {

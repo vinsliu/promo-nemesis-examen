@@ -1,3 +1,6 @@
+/**
+ * @module controllers/orderController
+ */
 const { logger } = require('../logger');
 const { createHash } = require('node:crypto');
 const lifecycle = require('../services/orderLifecycle');
@@ -7,6 +10,13 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const validId = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
 
+/**
+ * Crée une commande de façon idempotente (en-tête `Idempotency-Key` obligatoire).
+ * Les prix viennent du catalogue, jamais du client ; le stock est réservé de façon atomique.
+ * @param {express.Request} req - `body` : `{ items, shippingAddress, paymentMethod, shippingMethod }`.
+ * @param {express.Response} res - 201 créée, 200 rejouée, 409 stock insuffisant ou clé réutilisée.
+ * @returns {Promise<void>}
+ */
 exports.createOrder = async (req, res) => {
   const { items, shippingAddress, paymentMethod, shippingMethod } = req.body || {};
   if (!Array.isArray(items) || items.length === 0 || items.length > 100 ||
@@ -109,6 +119,12 @@ exports.createOrder = async (req, res) => {
   }
 };
 
+/**
+ * Supprime une commande (administrateur) et restitue son stock. Refusé si expédiée ou livrée.
+ * @param {express.Request} req - `params.id` : identifiant de la commande.
+ * @param {express.Response} res - 204, 404 ou 409.
+ * @returns {Promise<void>}
+ */
 exports.deleteOrder = async (req, res) => {
   const { id } = req.params;
   if (!validId(id)) return res.status(400).json({ message: 'Identifiant invalide.' });
@@ -134,6 +150,12 @@ exports.deleteOrder = async (req, res) => {
   }
 };
 
+/**
+ * Liste les commandes visibles (administrateur).
+ * @param {express.Request} req
+ * @param {express.Response} res - 200 tableau de commandes sans champs internes.
+ * @returns {Promise<void>}
+ */
 exports.getOrders = async (req, res) => {
   try {
     const orders = await Order.find(lifecycle.visible);
@@ -143,6 +165,14 @@ exports.getOrders = async (req, res) => {
   }
 };
 
+/**
+ * Applique une transition de statut autorisée ; l'annulation restitue le stock.
+ * @param {express.Request} req
+ * @param {express.Response} res
+ * @param {string} orderId - Identifiant de la commande.
+ * @param {string} status - Nouveau statut (voir `orderLifecycle.transitions`).
+ * @returns {Promise<void>}
+ */
 async function changeStatus(req, res, orderId, status) {
   if (!validId(orderId) || !Order.schema.path('status').enumValues.includes(status)) {
     return res.status(400).json({ message: 'Identifiant ou statut invalide.' });
@@ -177,5 +207,17 @@ async function changeStatus(req, res, orderId, status) {
     return res.status(503).json({ message: 'Mise à jour interrompue ; une récupération peut être nécessaire.' });
   }
 }
+/**
+ * Passe une commande à « En cours de traitement » (administrateur).
+ * @param {express.Request} req - `params.id`.
+ * @param {express.Response} res
+ * @returns {Promise<void>}
+ */
 exports.validateOrder = (req, res) => changeStatus(req, res, req.params.id, 'En cours de traitement');
+/**
+ * Change le statut d'une commande (administrateur).
+ * @param {express.Request} req - `params.orderId`, `body.status`.
+ * @param {express.Response} res
+ * @returns {Promise<void>}
+ */
 exports.updateOrderStatus = (req, res) => changeStatus(req, res, req.params.orderId, req.body?.status);

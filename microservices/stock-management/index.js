@@ -1,5 +1,14 @@
+/**
+ * @module stock-management
+ */
 const express = require('express');
 const { logger, requestLogging, errorHandler } = require('./logger');
+/**
+ * Construit le service de stock (point d'entrée `POST /update-stock`, simple accusé de réception).
+ * @param {object} [options]
+ * @param {object} [options.log] - Logger Pino.
+ * @returns {express.Express}
+ */
 function createApp({ log = logger } = {}) {
 const app = express();
 app.use(requestLogging(log));

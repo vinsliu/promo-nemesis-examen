@@ -1,3 +1,8 @@
+/**
+ * Schémas Joi de validation des entrées (inscription, connexion, commandes, statuts, stock).
+ * Chaque export contient `body` et/ou `params`, utilisables avec `middlewares/validate`.
+ * @module validation/schemas
+ */
 const Joi = require('joi');
 
 const objectId = Joi.string().hex().length(24);

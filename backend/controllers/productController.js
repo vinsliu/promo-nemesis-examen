@@ -1,6 +1,15 @@
+/**
+ * @module controllers/productController
+ */
 const audit = require('../audit');
 const Product = require('../models/Product');
 
+/**
+ * Liste le catalogue (route publique).
+ * @param {express.Request} req
+ * @param {express.Response} res - 200 tableau de produits.
+ * @returns {Promise<void>}
+ */
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find();
@@ -10,6 +19,12 @@ exports.getProducts = async (req, res) => {
   }
 };
 
+/**
+ * Fixe le stock disponible d'un produit (administrateur), entier positif ou nul.
+ * @param {express.Request} req - `params.productId`, `body.stock`.
+ * @param {express.Response} res - 200, 400, 404 ou 409.
+ * @returns {Promise<void>}
+ */
 exports.updateProductStock = async (req, res) => {
   const { stock } = req.body || {};
   const { productId } = req.params;
