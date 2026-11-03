@@ -108,3 +108,32 @@ test('La gateway refuse les appels anonymes et transmet les notifications authen
   assert.equal((await fetch(url, options)).status, 200);
   assert.equal(calls, 1);
 });
+
+test('Utilise le domaine vérifié, le destinataire demandé et Reply-To hors mode test', async t => {
+  let sent;
+  const send = await run(t, {
+    NOTIFICATION_TEST_EMAIL: '',
+    EMAIL_FROM: 'Promo Némésis Examen Vincent <contact@valneth.com>',
+    EMAIL_REPLY_TO: 'contact@valneth.com',
+  }, { fetchEmail: async (url, options) => { sent = JSON.parse(options.body); return { ok: true }; } });
+  assert.equal((await send()).status, 200);
+  assert.equal(sent.from, 'Promo Némésis Examen Vincent <contact@valneth.com>');
+  assert.deepEqual(sent.to, [payload.to]);
+  assert.equal(sent.reply_to, 'contact@valneth.com');
+});
+
+test('Conserve la redirection de test même avec un expéditeur personnalisé', async t => {
+  let sent;
+  const send = await run(t, { EMAIL_FROM: 'contact@valneth.com' }, {
+    fetchEmail: async (url, options) => { sent = JSON.parse(options.body); return { ok: true }; },
+  });
+  assert.equal((await send()).status, 200);
+  assert.deepEqual(sent.to, [baseEnv.NOTIFICATION_TEST_EMAIL]);
+});
+
+test('Refuse de sortir du mode test sans expéditeur personnalisé', async t => {
+  const send = await run(t, { NOTIFICATION_TEST_EMAIL: '' }, {
+    fetchEmail: () => { throw new Error('Unexpected API call'); },
+  });
+  assert.equal((await send()).status, 503);
+});

@@ -19,12 +19,14 @@ function createApp({ env = process.env, fetchEmail = globalThis.fetch, createTra
 
     const { to, subject, text } = req.body || {};
     const provider = env.EMAIL_PROVIDER || 'smtp';
-    // En mode test Resend, ne jamais envoyer au destinataire fourni par l'appelant.
-    const recipient = provider === 'resend' ? env.NOTIFICATION_TEST_EMAIL : to;
+    // Une adresse de test configuree reste prioritaire sur le destinataire demande.
+    const recipient = provider === 'resend' && env.NOTIFICATION_TEST_EMAIL
+      ? env.NOTIFICATION_TEST_EMAIL : to;
+    const from = env.EMAIL_FROM || 'Promo Némésis Examen Vincent <onboarding@resend.dev>';
     if (provider !== 'smtp' && provider !== 'resend') {
       return res.status(503).json({ message: 'Fournisseur email non configuré' });
     }
-    if (provider === 'resend' && (!env.RESEND_API_KEY || !recipient)) {
+    if (provider === 'resend' && (!env.RESEND_API_KEY || (!env.NOTIFICATION_TEST_EMAIL && (!env.EMAIL_FROM || from.includes('@resend.dev'))))) {
       return res.status(503).json({ message: 'Configuration Resend incomplète' });
     }
     if (provider === 'smtp' && (!env.EMAIL_USER || !env.EMAIL_APPLICATION_PASSWORD)) {
@@ -41,7 +43,10 @@ function createApp({ env = process.env, fetchEmail = globalThis.fetch, createTra
         const response = await fetchEmail('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'Promo Némésis Examen <onboarding@resend.dev>', to: [recipient], subject, text }),
+          body: JSON.stringify({
+            from, to: [recipient], subject, text,
+            ...(env.EMAIL_REPLY_TO ? { reply_to: env.EMAIL_REPLY_TO } : {}),
+          }),
           signal: AbortSignal.timeout(10000),
         });
         if (!response.ok) throw new Error('Provider rejected request');

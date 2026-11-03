@@ -75,9 +75,17 @@ pour l'API HTTPS (Node.js 22). Le mode SMTP reste le mode par défaut.
   (URL complète de la gateway suivie de `/notify`).
 - Gateway : `NOTIFI_SERVICE_URL` (URL du microservice, sans `/notify`).
 - SMTP : `EMAIL_USER` et `EMAIL_APPLICATION_PASSWORD` dans le microservice.
-- Resend : `RESEND_API_KEY` et `NOTIFICATION_TEST_EMAIL` dans le microservice.
-  En mode test, tous les emails sont redirigés vers cette adresse, qui doit être
-  celle du compte Resend. L'expéditeur est `onboarding@resend.dev`.
+- Resend : `RESEND_API_KEY` dans le microservice.
+  Pour tester sans domaine, configurer `NOTIFICATION_TEST_EMAIL` avec l'adresse
+  du compte Resend ; l'expéditeur par défaut est `onboarding@resend.dev`.
+  Après validation du domaine, configurer `EMAIL_FROM` avec
+  `Promo Némésis Examen Vincent <contact@valneth.com>` et `EMAIL_REPLY_TO` avec
+  `contact@valneth.com`. Ces deux variables concernent le mode Resend uniquement.
+  Tant que `NOTIFICATION_TEST_EMAIL` est renseignée, elle reste prioritaire.
+  La retirer pour utiliser le destinataire demandé par le backend
+  (actuellement `NOTIFICATION_EMAIL`, une alerte administrateur, pas encore
+  une confirmation envoyée automatiquement à chaque client).
+  Sans adresse de test, un expéditeur personnalisé est obligatoire.
 
 Pour `npm run start:all`, renseigner ces valeurs dans le `.env` à la racine.
 Pour Docker, utiliser `.env.docker` ; les variables sont transmises par Compose.
