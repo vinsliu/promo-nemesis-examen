@@ -2,6 +2,57 @@
 
 Toutes les commandes sont à exécuter depuis le dossier `exam1`.
 
+## CI/CD (GitHub Actions et Render)
+
+Le workflow `.github/workflows/ci.yml` s'exécute sur les push et les pull requests
+vers `dev` et `main`. Il utilise Node.js 22 pour :
+
+- installer les dépendances avec `npm ci` ;
+- tester le backend, y compris l'intégration avec un MongoDB 8 temporaire ;
+- tester le frontend et compiler React en mode CI ;
+- tester les notifications et leur routage par la gateway sans envoyer d'email ;
+- construire les cinq images Docker (backend, frontend, gateway, notifications,
+  stock-management), sans les publier dans un registre ;
+- exiger la réussite de tous les jobs dans le contrôle `CI validation`.
+
+Aucun secret Atlas, Render ou Resend n'est nécessaire dans GitHub Actions.
+La base `exam_functional_verify` existe uniquement dans le runner et disparaît
+avec lui. Les tests ne ciblent ni la préproduction ni la production.
+
+### Activation des déploiements
+
+Le workflow prépare les contrôles ; les paramètres Render doivent être activés
+manuellement. Pour la première installation :
+
+1. Dans les huit services Render, désactiver temporairement **Auto-Deploy**
+   (`Off`) pour éviter un déploiement avant la mise en place des contrôles.
+2. Commit et push du workflow et du README sur `dev`, puis attendre le succès
+   de tous les contrôles dans l'onglet **Actions** de GitHub.
+3. Ouvrir une pull request `dev` vers `main`. Après revue et réussite des contrôles,
+   fusionner pour installer également le workflow sur `main`.
+4. Dans chaque service Render : **Settings → Build & Deploy → Auto-Deploy →
+   After CI Checks Pass**. La préproduction doit suivre `dev`, la production `main`.
+5. Pour cette première activation, déployer manuellement le dernier commit validé
+   de chaque branche et vérifier les fonctionnalités et `/health`.
+
+Ensuite : push sur `dev` → tests et builds → déploiement préproduction ;
+pull request et fusion vers `main` → nouveaux contrôles → déploiement production.
+Un contrôle en échec doit empêcher le déploiement automatique et laisser la
+version précédente en service. Vérifier ce blocage avec une pull request de test
+en échec, sans fusionner son code dans `main`.
+
+Dans GitHub, protéger `main` avec une pull request obligatoire et le contrôle
+requis **CI validation**, si le compte et la visibilité du dépôt le permettent.
+Render vérifie les contrôles CI, mais ne protège pas les fusions dans GitHub.
+
+Les images Docker valident la conteneurisation locale. Render reconstruit depuis
+les sources avec ses propres variables (Node.js pour les services, site statique
+pour React) : il ne déploie pas les images construites dans cette CI.
+Ne pas réutiliser le build frontend CI pour le déploiement : son URL API `/api`
+est une valeur de validation, remplacée au build Render par celle de l'environnement.
+
+Référence : https://render.com/docs/deploys#integrating-with-ci
+
 ## Lancement en local
 
 Prérequis : Node.js, npm et MongoDB démarré en local.

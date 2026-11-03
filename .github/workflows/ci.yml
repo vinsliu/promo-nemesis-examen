@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+
+jobs:
+  backend:
+    name: Backend tests (MongoDB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mongo:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'quit(db.adminCommand(\"ping\").ok ? 0 : 1)'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm test
+        working-directory: backend
+        env:
+          # Disposable database on this runner only. No Atlas credentials.
+          TEST_MONGO_URI: mongodb://127.0.0.1:27017/exam_functional_verify
+          JWT_SECRET: ci-only-secret-not-for-deployment
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm test -- --watchAll=false --runInBand
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          # Validation build only; Render builds with its environment's API URL.
+          REACT_APP_API_BASE_URL: /api
+
+  notifications:
+    name: Notifications and gateway tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            gateway/package-lock.json
+            microservices/notifications/package-lock.json
+      - run: npm --prefix gateway ci
+      - run: npm --prefix microservices/notifications ci
+      - name: Test authenticated routing and simulated email providers
+        run: node --test microservices/notifications/index.test.js
+
+  docker:
+    name: Docker (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            directory: backend
+            dockerfile: Dockerfile.node
+          - service: gateway
+            directory: gateway
+            dockerfile: Dockerfile.node
+          - service: notifications
+            directory: microservices/notifications
+            dockerfile: Dockerfile.node
+          - service: stock-management
+            directory: microservices/stock-management
+            dockerfile: Dockerfile.node
+          - service: frontend
+            directory: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build image without secrets or publishing
+        run: >-
+          docker build
+          --file '${{ matrix.dockerfile }}'
+          --build-arg 'SERVICE=${{ matrix.directory }}'
+          --tag 'promo-nemesis-${{ matrix.service }}:ci' .
+
+  validation:
+    name: CI validation
+    if: ${{ always() }}
+    needs: [backend, frontend, notifications, docker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      BACKEND: ${{ needs.backend.result }}
+      FRONTEND: ${{ needs.frontend.result }}
+      NOTIFICATIONS: ${{ needs.notifications.result }}
+      DOCKER: ${{ needs.docker.result }}
+    steps:
+      - name: Require every check to succeed (including no skipped jobs)
+        run: |
+          for result in "$BACKEND" "$FRONTEND" "$NOTIFICATIONS" "$DOCKER"; do
+            if [ "$result" != success ]; then
+              echo 'At least one required job failed, was cancelled, or was skipped.'
+              exit 1
+            fi
+          done
