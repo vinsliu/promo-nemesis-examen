@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
 
+// Le jeton d'authentification vit dans un cookie HttpOnly (inaccessible au JavaScript).
+// Seules des informations d'affichage non sensibles sont gardées ici ; le serveur reste l'autorité.
+const SESSION_KEY = 'session';
+
+export function saveSession({ userId, role, username, expiresAt }) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ userId, role, username, expiresAt })); } catch { /* Stockage indisponible. */ }
+  window.dispatchEvent(new Event('session-change'));
+}
 export function getSession() {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
-    const encoded = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const claims = JSON.parse(atob(encoded));
-    if (!Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now() ||
-        typeof claims.userId !== 'string' || !['user', 'admin'].includes(claims.role)) return null;
-    return { token, ...claims, username: localStorage.getItem('username') || '' };
+    const claims = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (!claims || !Number.isFinite(claims.expiresAt) || claims.expiresAt <= Date.now() ||
+        typeof claims.userId !== 'string' || typeof claims.username !== 'string' ||
+        !['user', 'admin'].includes(claims.role)) return null;
+    return claims;
   } catch { return null; }
 }
 export function clearSession() {
-  for (const key of ['token', 'username', 'role']) localStorage.removeItem(key);
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* Stockage indisponible. */ }
   window.dispatchEvent(new Event('session-change'));
 }
 export function useSession() {
@@ -20,7 +26,7 @@ export function useSession() {
   useEffect(() => {
     const update = () => {
       const current = getSession();
-      if (!current && localStorage.getItem('token')) clearSession();
+      if (!current && localStorage.getItem(SESSION_KEY)) clearSession();
       setSession(current);
     };
     window.addEventListener('session-change', update);

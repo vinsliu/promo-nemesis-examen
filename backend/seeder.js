@@ -5,13 +5,16 @@ const mongoose = require('mongoose');
 const Product = require('./models/Product'); // Assurez-vous que le chemin est correct
 
 
+// Le seed supprime tous les produits : jamais en production sans --force explicite.
+if (process.env.NODE_ENV === 'production' && !process.argv.includes('--force')) {
+  logger.error('Seed refusé en production (relancer avec --force si c\'est voulu).');
+  process.exit(1);
+}
+
 // Connexion à MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGO_URI)
   .then(() => logger.info('MongoDB connecté pour le seed'))
-  .catch((err) => logger.error('Erreur de connexion à MongoDB'));
+  .catch(() => logger.error('Erreur de connexion à MongoDB'));
 
 // Jeux de produits à insérer
 const products = [

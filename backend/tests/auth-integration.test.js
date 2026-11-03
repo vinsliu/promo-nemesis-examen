@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../controllers/authController');
 const uri = process.env.TEST_MONGO_URI;
-function response() { return { code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } }; }
+function response() { return { code: 200, cookies: {}, status(code) { this.code = code; return this; }, cookie(name, value, options) { this.cookies[name] = { value, options }; return this; }, json(body) { this.body = body; return this; } }; }
 test('case-insensitive usernames preserve legacy accounts and enforce uniqueness in concurrent registrations', { skip: !uri }, async () => {
   assert.match(uri, /\/exam_functional_verify(?:[?]|$)/);
   await mongoose.connect(uri); const prefix = `Case${Date.now()}`;
@@ -19,6 +19,8 @@ test('case-insensitive usernames preserve legacy accounts and enforce uniqueness
     for (const username of [`${prefix}Legacy`.toLowerCase(), `${prefix}Legacy`.toUpperCase()]) {
       const result = response(); await auth.login({ body: { username, password: 'old' } }, result);
       assert.equal(result.code, 200); assert.equal(result.body.username, `${prefix}Legacy`);
+      assert.equal(result.cookies.token.options.httpOnly, true);
+      assert.equal(result.body.token, undefined);
     }
     const body = { username: `${prefix}legacy`, email: `${prefix}-duplicate@example.test`, password: 'Password123!' };
     emails.push(body.email); const duplicate = response(); await auth.register({ body }, duplicate); assert.equal(duplicate.code, 409);

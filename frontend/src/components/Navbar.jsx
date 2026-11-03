@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSession, clearSession } from '../services/session';
+import client from '../services/client';
 import { useCart } from '../context/CartContext';
 
 const Navbar = () => {
@@ -13,8 +14,9 @@ const Navbar = () => {
   const isAuthenticated = !!session;
   const username = session?.username; // Récupère le nom d'utilisateur si connecté
 
-  const handleLogout = () => {
-    // Supprimer les informations d'authentification
+  const handleLogout = async () => {
+    // Le serveur efface le cookie HttpOnly ; l'affichage est nettoyé même si l'appel échoue.
+    try { await client.post('/auth/logout'); } catch { /* Session locale supprimée quand même. */ }
     clearSession();
     navigate('/login');
   };

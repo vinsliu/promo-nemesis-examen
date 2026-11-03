@@ -14,7 +14,8 @@ const originalSecret = process.env.JWT_SECRET;
 const id = '507f1f77bcf86cd799439011';
 function response() {
   return { code: 200, headers: {}, status(code) { this.code = code; return this; },
-    json(body) { this.body = body; return this; }, set(name, value) { this.headers[name] = value; return this; } };
+    json(body) { this.body = body; return this; }, cookie(name, value, options) { this.cookies = { ...this.cookies, [name]: { value, options } }; return this; },
+    clearCookie(name) { this.cleared = name; return this; }, end() { return this; }, set(name, value) { this.headers[name] = value; return this; } };
 }
 beforeEach(() => { process.env.JWT_SECRET = 'test-only-auth-secret'; });
 afterEach(() => {
@@ -49,8 +50,10 @@ test('existing bcrypt account with short password logs in and retains frontend c
   });
   const res = response(); await auth.login({ body: { username: 'existing', password: 'old' } }, res);
   assert.equal(res.code, 200); assert.equal(res.body.username, 'existing'); assert.equal(res.body.role, 'admin');
-  const claims = jwt.verify(res.body.token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  const claims = jwt.verify(res.cookies.token.value, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   assert.equal(claims.userId, id); assert.equal(claims.role, 'admin'); assert.equal(claims.exp - claims.iat, 3600);
+  assert.equal(res.body.token, undefined); assert.equal(res.cookies.token.options.httpOnly, true);
+  assert.equal(res.cookies.token.options.sameSite, 'strict');
 });
 
 test('missing JWT secret fails closed', async () => {
@@ -154,4 +157,26 @@ test('login requests case-insensitive collation without changing historical disp
   });
   const res = response(); await auth.login({ body: { username: 'ExIsTiNg', password: 'Password123!' } }, res);
   assert.equal(res.code, 200); assert.equal(res.body.username, 'Existing');
+});
+
+test('cookie sessions require the CSRF header on unsafe methods and logout clears the cookie', async () => {
+  const token = jwt.sign({ userId: id, role: 'user' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const headers = name => (name === 'X-Requested-With' ? 'XMLHttpRequest' : undefined);
+  const blocked = response();
+  authenticateToken({ method: 'POST', headers: {}, cookies: { token }, get: () => undefined }, blocked, () => assert.fail('must reject'));
+  assert.equal(blocked.code, 403);
+  let calls = 0;
+  authenticateToken({ method: 'POST', headers: {}, cookies: { token }, get: headers }, response(), () => calls++);
+  authenticateToken({ method: 'GET', headers: {}, cookies: { token }, get: () => undefined }, response(), () => calls++);
+  assert.equal(calls, 2);
+  const out = response(); auth.logout({}, out); assert.equal(out.cleared, 'token'); assert.equal(out.code, 204);
+});
+
+test('Joi schemas strip unknown fields and reject weak passwords and bad ids', () => {
+  const schemas = require('../validation/schemas');
+  const ok = schemas.register.body.validate({ username: 'abc', email: ' A@Example.com ', password: 'Password123!', role: 'admin' }, { stripUnknown: true });
+  assert.equal(ok.error, undefined); assert.equal(ok.value.email, 'a@example.com'); assert.equal(ok.value.role, undefined);
+  assert.ok(schemas.register.body.validate({ username: 'abc', email: 'a@b.fr', password: 'short' }).error);
+  assert.ok(schemas.productStock.params.validate({ productId: '$ne' }).error);
+  assert.ok(schemas.createOrder.body.validate({ items: [{ productId: id, quantity: 1.5 }] }).error);
 });

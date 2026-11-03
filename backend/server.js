@@ -5,21 +5,37 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 const { logger, requestLogging, errorHandler } = require('./logger');
 
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+
 function createApp({ log = logger } = {}) {
-const app = express();
-app.use(requestLogging(log));
-app.use(cors());
-app.use(express.json());
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/orders', require('./routes/orderRoutes'));
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use(errorHandler);
-return app;
+  const app = express();
+  const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
+    : process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3000'];
+  app.use(requestLogging(log));
+  app.disable('x-powered-by');
+  app.use(helmet());
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
+  app.use(cookieParser());
+  app.use(express.json({ limit: '10kb' }));
+  app.use('/api/products', require('./routes/productRoutes'));
+  app.use('/api/orders', require('./routes/orderRoutes'));
+  app.use('/api/auth', require('./routes/authRoutes'));
+  app.use((req, res) => res.status(404).json({ message: 'Ressource introuvable.' }));
+  app.use((error, req, res, next) => {
+    if (error.type === 'entity.parse.failed') return res.status(400).json({ message: 'Corps de requête JSON invalide.' });
+    if (error.type === 'entity.too.large') return res.status(413).json({ message: 'Corps de requête trop volumineux.' });
+    return errorHandler(error, req, res, next);
+  });
+  return app;
 }
 
 const PORT = process.env.PORT || 5000;
 async function start() {
-  if (!process.env.JWT_SECRET || !process.env.MONGO_URI) throw new Error('Configuration serveur incomplète');
+  if (!process.env.MONGO_URI || !process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error('Configuration serveur incomplète (JWT_SECRET : 32 caractères minimum)');
+  }
   await connectDB();
   await require('./models/User').init();
   await require('./models/Order').init();
