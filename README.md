@@ -158,6 +158,113 @@ Arrêter les conteneurs en conservant les données :
 docker compose --env-file .env.docker down
 ```
 
+## Monitoring avec Uptime Kuma
+
+Uptime Kuma 2 est inclus dans `docker-compose.yml`. Il surveille la disponibilité
+et les temps de réponse et conserve son compte administrateur, ses sondes et son
+historique dans le volume Docker `uptime-kuma-data`.
+
+### Démarrage et accès
+
+Depuis `exam1`, avec Docker Desktop démarré et `.env.docker` configuré comme indiqué
+ci-dessus, lancer uniquement le monitoring (sans démarrer ou reconstruire l'application) :
+
+```bash
+docker compose --env-file .env.docker up -d uptime-kuma
+```
+
+Le lancement complet `docker compose --env-file .env.docker up --build -d --wait`
+démarre également Kuma.
+
+**Accès : [http://localhost:3001](http://localhost:3001).** Au premier accès, terminer
+l'assistant de configuration et créer le compte administrateur avec un mot de
+passe unique. Aucun identifiant par défaut n'est versionné. Pour changer le port,
+ajouter `KUMA_PORT=3002` dans `.env.docker`, relancer la commande et ouvrir
+`http://localhost:3002`. L'interface est liée à `127.0.0.1` uniquement.
+
+### Sondes locales
+
+Dans l'interface, choisir **Ajouter une sonde**, puis créer les contrôles suivants.
+L'application doit être démarrée avec Docker pour que ces adresses fonctionnent.
+Les requêtes partent du conteneur Kuma : utiliser les noms des services Docker,
+pas `localhost`.
+
+| Nom | Type | Cible | Résultat attendu |
+| --- | --- | --- | --- |
+| Local — Frontend | HTTP(s) | `http://frontend:3000` | HTTP 200 |
+| Local — Backend et MongoDB | HTTP(s) | `http://backend:5000/api/products` | HTTP 200 |
+| Local — Gateway | HTTP(s) | `http://gateway:8000/health` | HTTP 200 |
+| Local — Notifications | HTTP(s) | `http://notifications:4002/health` | HTTP 200 |
+| Local — Stock | Port TCP | Hôte `stock-management`, port `4003` | Connexion acceptée |
+| Local — MongoDB | Port TCP | Hôte `mongo`, port `27017` | Connexion acceptée |
+
+Configurer un intervalle de 60 secondes, un délai d'expiration de 10 secondes et
+2 nouvelles tentatives pour les sondes HTTP. Restreindre les codes acceptés à
+`200`. Le contrôle backend lit le catalogue sans le modifier et sollicite MongoDB.
+Les sondes TCP vérifient seulement l'ouverture du port ; les routes `/health` de
+la gateway et des notifications vérifient que le processus HTTP répond, sans
+garantir la livraison d'un email. Aucune sonde ne doit appeler les routes de
+création de commande, d'envoi d'email ou de modification de stock.
+
+### Préproduction et production Render
+
+Créer deux groupes distincts dans Kuma, puis des sondes HTTP(s) pour chaque
+environnement en utilisant les **URL HTTPS réelles du tableau de bord Render** :
+la racine du frontend, `/api/products` du backend et `/health` de la gateway et
+des notifications si ces services sont accessibles depuis Kuma. Les noms Docker
+du tableau précédent ne fonctionnent pas pour Render. Ne pas rendre un service
+privé public uniquement pour le surveiller.
+
+Le push Git ne déploie pas Kuma sur Render : le service ajouté ici fonctionne
+sur l'hôte Docker où la commande est exécutée. Pour une surveillance continue,
+le lancer sur une machine toujours allumée, idéalement distincte de l'application,
+avec un stockage persistant. Pour consulter cette instance distante sans exposer
+le port d'administration, utiliser un tunnel SSH :
+
+```bash
+ssh -N -L 3001:127.0.0.1:3001 utilisateur@serveur-monitoring
+```
+
+Puis ouvrir `http://localhost:3001` sur son ordinateur. Sur une offre Render avec
+mise en veille, les sondes régulières peuvent maintenir les services éveillés et
+les démarrages à froid peuvent dépasser le délai de la sonde ; adapter les seuils
+et interpréter ces alertes en conséquence.
+
+### Alertes, validation et exploitation
+
+Dans **Paramètres → Notifications**, configurer par exemple une notification
+email SMTP, envoyer un test depuis Kuma puis l'associer à chaque sonde. Ces
+identifiants sont configurés dans Kuma, séparément du microservice notifications ;
+ils ne doivent pas être ajoutés au dépôt. Vérifier les alertes de panne et de
+rétablissement.
+
+Pour valider en local, après avoir obtenu des sondes vertes, arrêter uniquement
+le frontend, attendre l'état DOWN et l'alerte, puis le redémarrer et vérifier le
+retour UP :
+
+```bash
+docker compose --env-file .env.docker stop frontend
+docker compose --env-file .env.docker start frontend
+```
+
+Exécuter ces deux commandes séparément en attendant l'alerte entre les deux.
+Conserver des captures du tableau de bord et de l'incident pour la soutenance.
+La création des sondes et des notifications se fait dans l'interface après
+installation ; elles ne sont pas préconfigurées par le fichier Compose.
+
+```bash
+docker compose --env-file .env.docker logs --tail=100 uptime-kuma
+docker compose --env-file .env.docker stop uptime-kuma
+docker compose --env-file .env.docker start uptime-kuma
+```
+
+`docker compose down` conserve les données ; **ne pas utiliser `down -v`**, qui
+supprimerait également les volumes MongoDB et Kuma. Sauvegarder le volume Kuma
+avec le conteneur arrêté avant une mise à jour. Les sauvegardes contiennent des
+secrets de notification : les conserver hors du dépôt.
+
+Référence : [documentation officielle Uptime Kuma](https://github.com/louislam/uptime-kuma).
+
 ## Notifications email
 
 Le microservice conserve `/notify` et accepte `{ to, subject, text }`.
