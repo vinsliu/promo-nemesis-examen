@@ -40,6 +40,8 @@ services:
       MONGO_URI: mongodb://mongo:27017/exam1Db
       JWT_SECRET: ${JWT_SECRET:?Definir JWT_SECRET dans .env.docker}
       NOTIFICATION_URL: http://gateway:8000/notify
+      NOTIFICATION_EMAIL: ${NOTIFICATION_EMAIL:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Definir INTERNAL_API_TOKEN dans .env.docker}
     depends_on:
       mongo:
         condition: service_healthy
@@ -73,6 +75,7 @@ services:
         SERVICE: gateway
     environment:
       GATEWAY_PORT: 8000
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Definir INTERNAL_API_TOKEN dans .env.docker}
       NOTIFI_SERVICE_URL: http://notifications:4002
       STOCK_SERVICE_URL: http://stock-management:4003
     depends_on:
@@ -89,6 +92,10 @@ services:
     command: ["node", "index.js"]
     environment:
       NOTIFI_PORT: 4002
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Definir INTERNAL_API_TOKEN dans .env.docker}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      NOTIFICATION_TEST_EMAIL: ${NOTIFICATION_TEST_EMAIL:-}
       EMAIL_USER: ${EMAIL_USER:-}
       EMAIL_APPLICATION_PASSWORD: ${EMAIL_APPLICATION_PASSWORD:-}
 

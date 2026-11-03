@@ -14,11 +14,12 @@ app.use(express.json());
 
 // Routes principales pour chaque microservice
 //app.use('/auth', authProxy);
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/notify', notifiProxy);
 app.use('/update-stock', stockProxy);
 
 // Lancer le Gateway
-const PORT = process.env.GATEWAY_PORT || 8000;
+const PORT = process.env.PORT || process.env.GATEWAY_PORT || 8000;
 app.listen(PORT, () => {
   console.log(`Gateway opérationnel sur le port ${PORT}`);
 });

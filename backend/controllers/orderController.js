@@ -1,5 +1,5 @@
 // backend/controllers/orderController.js
-const axios = require('axios');
+const notify = require('../services/notifications');
 const Order = require('../models/Order');
 const orderLog = require('debug')('orderRoutes:console')
 
@@ -58,15 +58,14 @@ exports.createOrder = async (req, res) => {
 
     // Appel au micro-service de notification
     try {
-      await axios.post(process.env.NOTIFICATION_URL || 'http://localhost:8000/notify', {
-        to: 'syaob@yahoo.fr',
+      await notify({
         subject: 'Nouvelle Commande Créée',
         text: `Une commande a été créée avec succès pour les produits suivants : \n${orderDetails
           .map((item) => `Produit ID : ${item.productId}, Quantité : ${item.quantity}`)
           .join('\n')}`,
       });
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de la notification', error);
+      console.error('Échec de la notification de commande');
     }
 
     // Appel au micro-service de gestion des stocks

@@ -38,6 +38,7 @@ openssl rand -hex 32
 ```
 
 Reporter le secret généré dans `JWT_SECRET` du fichier `.env.docker`.
+Générer une seconde valeur pour `INTERNAL_API_TOKEN` avec la même commande.
 Renseigner les variables email pour activer les notifications.
 Ne pas versionner les fichiers contenant des secrets.
 
@@ -62,3 +63,36 @@ Arrêter les conteneurs en conservant les données :
 ```bash
 docker compose --env-file .env.docker down
 ```
+
+## Notifications email
+
+Le microservice conserve `/notify` et accepte `{ to, subject, text }`.
+Choisir `EMAIL_PROVIDER=smtp` pour conserver Nodemailer/Gmail, ou `resend`
+pour l'API HTTPS (Node.js 22). Le mode SMTP reste le mode par défaut.
+
+- Backend, gateway et notifications : même `INTERNAL_API_TOKEN`, distinct du JWT.
+- Backend : `NOTIFICATION_EMAIL` (destinataire des alertes) et `NOTIFICATION_URL`
+  (URL complète de la gateway suivie de `/notify`).
+- Gateway : `NOTIFI_SERVICE_URL` (URL du microservice, sans `/notify`).
+- SMTP : `EMAIL_USER` et `EMAIL_APPLICATION_PASSWORD` dans le microservice.
+- Resend : `RESEND_API_KEY` et `NOTIFICATION_TEST_EMAIL` dans le microservice.
+  En mode test, tous les emails sont redirigés vers cette adresse, qui doit être
+  celle du compte Resend. L'expéditeur est `onboarding@resend.dev`.
+
+Pour `npm run start:all`, renseigner ces valeurs dans le `.env` à la racine.
+Pour Docker, utiliser `.env.docker` ; les variables sont transmises par Compose.
+Sur Render, définir les variables service par service, avec les URL HTTPS Render.
+Ne jamais mettre ces secrets dans le frontend ou dans Git.
+Les routes `/health` de la gateway et des notifications sont publiques.
+La protection ajoutée concerne `/notify` ; la route de stock reste à sécuriser
+avant de déployer la gateway publiquement.
+
+Tests sans envoyer d'email :
+
+```bash
+node --test microservices/notifications/index.test.js
+```
+
+Un échec email ne supprime pas une commande sauvegardée. Les appels ont un délai
+limité : sur Render gratuit, réveiller les services via `/health` avant les tests
+pour éviter que leur démarrage à froid dépasse ce délai.
