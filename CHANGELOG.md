@@ -5,6 +5,10 @@ Les dates sont celles des commits.
 
 ## [Non publié]
 
+### Corrigé
+- Le formulaire de livraison bloque l'accès au récapitulatif si l'adresse est vide,
+  incomplète ou composée d'espaces, affiche une erreur et place le focus sur le champ à compléter.
+
 ### Ajouté
 - Journal d'audit Pino (`backend/audit.js`) : connexions (succès et échec), inscriptions, déconnexions, création de
   commande, changement de statut, suppression de commande et modification de stock ; champ `env`

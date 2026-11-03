@@ -95,6 +95,9 @@ test.each([[false, 'colissimo', 'Carte bancaire'], [true, 'chronopost', 'PayPal'
       <Route path="/shipping-payment" element={<ShippingPayment />} />
       <Route path="/order" element={<Order />} />
     </Routes></MemoryRouter></CartProvider>);
+    for (const [label, value] of [['Rue', '12 rue du Test'], ['Ville', 'Paris'], ['Code Postal', '75001'], ['Pays', 'France']]) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    }
     if (change) {
       fireEvent.change(screen.getByLabelText('Méthode de livraison:'), { target: { value: shipping } });
       fireEvent.change(screen.getByLabelText('Mode de paiement:'), { target: { value: payment } });
@@ -105,6 +108,28 @@ test.each([[false, 'colissimo', 'Carte bancaire'], [true, 'chronopost', 'PayPal'
     expect(screen.getByText(payment)).toBeInTheDocument();
     expect(screen.queryByText('Non spécifiée')).not.toBeInTheDocument();
   });
+
+test.each(['', '   '])('checkout blocks an empty or whitespace-only address (%j), then accepts a complete address', value => {
+  render(<CartProvider><MemoryRouter initialEntries={['/shipping-payment']}><Routes>
+    <Route path="/shipping-payment" element={<ShippingPayment />} />
+    <Route path="/order" element={<p>Récapitulatif autorisé</p>} />
+  </Routes></MemoryRouter></CartProvider>);
+  for (const label of ['Rue', 'Ville', 'Code Postal', 'Pays']) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  }
+  fireEvent.click(screen.getByText('Passer une commande'));
+  expect(screen.getByRole('alert')).toHaveTextContent('adresse de livraison complète');
+  expect(screen.queryByText('Récapitulatif autorisé')).not.toBeInTheDocument();
+  for (const [label, text] of [['Rue', '12 rue du Test'], ['Ville', 'Paris'], ['Code Postal', '75001']]) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value: text } });
+  }
+  fireEvent.click(screen.getByText('Passer une commande'));
+  expect(screen.queryByText('Récapitulatif autorisé')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Pays')).toHaveFocus();
+  fireEvent.change(screen.getByLabelText('Pays'), { target: { value: 'France' } });
+  fireEvent.click(screen.getByText('Passer une commande'));
+  expect(screen.getByText('Récapitulatif autorisé')).toBeInTheDocument();
+});
 
 test('session expiry clears stored credentials and updates the mounted interface', () => {
   jest.useFakeTimers();

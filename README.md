@@ -233,12 +233,27 @@ création de commande, d'envoi d'email ou de modification de stock.
 
 ### Préproduction et production Render
 
-Créer deux groupes distincts dans Kuma, puis des sondes HTTP(s) pour chaque
-environnement en utilisant les **URL HTTPS réelles du tableau de bord Render** :
-la racine du frontend, `/api/products` du backend et `/health` de la gateway et
-des notifications si ces services sont accessibles depuis Kuma. Les noms Docker
-du tableau précédent ne fonctionnent pas pour Render. Ne pas rendre un service
-privé public uniquement pour le surveiller.
+L'instance locale a été configurée le 3 novembre 2026 avec deux groupes,
+**Préproduction** et **Production**, contenant chacun quatre sondes actives :
+
+| Groupe | Frontend | Autres contrôles |
+| --- | --- | --- |
+| Préproduction | https://preprod.valneth.com | Backend `/api/products`, gateway `/health`, notifications `/health` |
+| Production | https://www.valneth.com | Backend `/api/products`, gateway `/health`, notifications `/health` |
+
+Les huit URL exactes et les preuves de validation figurent dans
+[`docs/SUPERVISION-E26.md`](docs/SUPERVISION-E26.md).
+Ces sondes utilisent un intervalle de **60 secondes**, **2 nouvelles tentatives**,
+un délai de **48 secondes** adapté aux démarrages Render et les codes acceptés
+**200–299**. La vérification TLS est active ; les sondes des frontends activent
+également les alertes d'expiration de certificat. Les réglages de 10 secondes
+du tableau local ci-dessus concernent les sondes locales proposées.
+
+Pour consulter l'état, ouvrir le **Dashboard**, développer les deux groupes et
+cliquer sur une sonde pour consulter ses temps de réponse et son historique.
+Le bouton **Edit / Modifier** permet de mettre à jour l'URL ou les seuils.
+Les noms Docker du tableau local ne fonctionnent pas pour Render. Ne pas rendre
+un service privé public uniquement pour le surveiller.
 
 Le push Git ne déploie pas Kuma sur Render : le service ajouté ici fonctionne
 sur l'hôte Docker où la commande est exécutée. Pour une surveillance continue,
@@ -257,11 +272,23 @@ et interpréter ces alertes en conséquence.
 
 ### Alertes, validation et exploitation
 
-Dans **Paramètres → Notifications**, configurer par exemple une notification
-email SMTP, envoyer un test depuis Kuma puis l'associer à chaque sonde. Ces
-identifiants sont configurés dans Kuma, séparément du microservice notifications ;
-ils ne doivent pas être ajoutés au dépôt. Vérifier les alertes de panne et de
-rétablissement.
+Le canal **Alertes préprod et prod — contact@valneth.com** est configuré avec
+**Resend** : expéditeur `Supervision Valneth <contact@valneth.com>`, destinataire
+`contact@valneth.com`. Il est associé aux huit sondes et activé par défaut pour
+les nouvelles sondes. La clé est conservée dans Kuma, hors du dépôt.
+
+Dans **Paramètres → Notifications**, modifier ce canal ou utiliser **Test** pour
+envoyer un email de contrôle. Dans les paramètres de chaque sonde, vérifier que
+le canal reste coché. Une nouvelle installation nécessite de renseigner la clé
+Resend dans Kuma, puis de tester et d'associer le canal aux sondes.
+
+Le test du canal et les alertes **DOWN puis UP** ont été validés, avec trois emails
+confirmés livrés dans Resend. La sonde dédiée **Validation E26 — test DOWN puis UP**
+est conservée en pause avec son historique. Elle utilise une recherche de mot-clé
+sur le frontend de préproduction : chaîne volontairement absente pour DOWN,
+puis `Examen` pour UP. Cette méthode teste les alertes sans arrêter l'application.
+Pour rejouer ce test, modifier le mot-clé de cette sonde, la reprendre, attendre
+DOWN, remettre `Examen`, attendre UP, puis remettre la sonde de test en pause.
 
 Pour valider en local, après avoir obtenu des sondes vertes, arrêter uniquement
 le frontend, attendre l'état DOWN et l'alerte, puis le redémarrer et vérifier le
@@ -274,8 +301,9 @@ docker compose --env-file .env.docker start frontend
 
 Exécuter ces deux commandes séparément en attendant l'alerte entre les deux.
 Conserver des captures du tableau de bord et de l'incident pour la soutenance.
-La création des sondes et des notifications se fait dans l'interface après
-installation ; elles ne sont pas préconfigurées par le fichier Compose.
+Les sondes et les notifications sont conservées dans le volume de cette instance ;
+elles ne sont pas préconfigurées par le fichier Compose. Sur une nouvelle machine
+sans restauration du volume, recréer la configuration dans l'interface.
 
 ```bash
 docker compose --env-file .env.docker logs --tail=100 uptime-kuma
