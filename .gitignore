@@ -27,3 +27,4 @@ data/db/
 
 # Autre
 .DS_Store
+!.env.docker.example

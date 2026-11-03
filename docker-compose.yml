@@ -1,32 +1,105 @@
-version: '3'
+# Usage : docker compose --env-file .env.docker up --build -d
+name: exam1-local
+
+x-node: &node
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   frontend:
-    build: ./frontend
+    <<: *node
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
-      - '3000:3000'
+      - "127.0.0.1:${WEB_PORT:-8080}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   backend:
-    build: ./backend
-    ports:
-      - '5000:5000'
+    <<: *node
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args:
+        SERVICE: backend
     environment:
-      - MONGO_URI=mongodb://mongo:27017/mydatabase
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/exam1Db
+      JWT_SECRET: ${JWT_SECRET:?Definir JWT_SECRET dans .env.docker}
+      NOTIFICATION_URL: http://gateway:8000/notify
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+      gateway:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/api/products').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   mongo:
-    image: mongo
-    ports:
-      - '27018:27017'
+    <<: *node
+    image: mongo:8.0
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  gateway:
+    <<: *node
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args:
+        SERVICE: gateway
+    environment:
+      GATEWAY_PORT: 8000
+      NOTIFI_SERVICE_URL: http://notifications:4002
+      STOCK_SERVICE_URL: http://stock-management:4003
+    depends_on:
+      - notifications
+      - stock-management
 
   notifications:
-    build: ./microservices/notifications
-    ports:
-      - '3001:3001'
+    <<: *node
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args:
+        SERVICE: microservices/notifications
+    command: ["node", "index.js"]
+    environment:
+      NOTIFI_PORT: 4002
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_APPLICATION_PASSWORD: ${EMAIL_APPLICATION_PASSWORD:-}
 
   stock-management:
-    build: ./microservices/stock-management
-    ports:
-      - '3002:3002'
+    <<: *node
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args:
+        SERVICE: microservices/stock-management
+    command: ["node", "index.js"]
+
+volumes:
+  mongo-data:

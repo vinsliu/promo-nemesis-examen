@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../services/config';
 // src/pages/Login.js
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,7 +15,7 @@ const Login = () => {
     e.preventDefault();
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        `${API_BASE_URL}/auth/login`,
         credentials
       );
       const { token, role, username } = response.data;
