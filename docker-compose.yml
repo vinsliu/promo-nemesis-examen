@@ -11,6 +11,14 @@ x-node: &node
       max-file: "3"
 
 services:
+  uptime-kuma:
+    <<: *node
+    image: louislam/uptime-kuma:2
+    ports:
+      - "127.0.0.1:${KUMA_PORT:-3001}:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+
   frontend:
     <<: *node
     build:
@@ -112,3 +120,4 @@ services:
 
 volumes:
   mongo-data:
+  uptime-kuma-data:
