@@ -5,11 +5,16 @@ import { useSession, clearSession } from '../services/session';
 import client from '../services/client';
 import { useCart } from '../context/CartContext';
 
+/**
+ * Barre de navigation : accueil, panier avec la bulle du nombre d'articles, lien Administration
+ * (rôle admin), connexion/inscription ou déconnexion. La déconnexion appelle l'API pour effacer le
+ * cookie HttpOnly, puis vide la session locale même si l'appel échoue.
+ */
 const Navbar = () => {
   const navigate = useNavigate();
   const { cart } = useCart();
 
-  // Simuler l'état d'authentification avec le localStorage
+  // Session d'affichage (le jeton, lui, est dans un cookie HttpOnly)
   const session = useSession();
   const isAuthenticated = !!session;
   const username = session?.username; // Récupère le nom d'utilisateur si connecté

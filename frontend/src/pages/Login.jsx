@@ -4,6 +4,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import client from "../services/client";
 import { saveSession } from "../services/session";
 
+/**
+ * Page de connexion. Le serveur pose le jeton dans un cookie HttpOnly ; seules les informations
+ * d'affichage sont gardées côté navigateur. La redirection `returnTo` n'accepte que les chemins internes
+ * (protection contre les redirections ouvertes).
+ */
 const Login = () => {
   const [credentials, setCredentials] = useState({
     username: "",

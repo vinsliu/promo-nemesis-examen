@@ -5,6 +5,12 @@ import { getOrderAttempt, clearOrderAttempt } from '../services/orderAttempt';
 import { getSession } from '../services/session';
 import { createOrder } from "../services/api";
 
+/**
+ * Synthèse de commande et confirmation. Chaque tentative reçoit une clé d'idempotence (`Idempotency-Key`)
+ * conservée tant que le résultat est incertain : une nouvelle tentative avec le même panier retrouve la
+ * même commande au lieu d'en créer une seconde. Seuls l'identifiant, la quantité et l'adresse comptent :
+ * les prix sont relus par le serveur.
+ */
 const Order = () => {
   const navigate = useNavigate();
   const submitting = useRef(false);

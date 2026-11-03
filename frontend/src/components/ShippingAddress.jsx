@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 
+/**
+ * Formulaire d'adresse de livraison. Chaque saisie est enregistrée dans le panier (contexte) ;
+ * la validation définitive est faite à la confirmation de commande puis par le serveur.
+ */
 const ShippingAddress = () => {
   const { shippingAddress, dispatch } = useCart();
   const [street, setStreet] = useState(shippingAddress.street || '');

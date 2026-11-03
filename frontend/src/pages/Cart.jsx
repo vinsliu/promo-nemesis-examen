@@ -2,6 +2,7 @@ import React from 'react';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 
+/** Page panier : modification des quantités, suppression, vidage, puis passage à la livraison. Prix purement indicatifs : le serveur recalcule le total. */
 const Cart = () => {
   const { cart, dispatch } = useCart();
   const navigate = useNavigate();

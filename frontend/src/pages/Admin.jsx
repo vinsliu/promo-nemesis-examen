@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { getOrders, getProducts, updateOrderStatus, validateOrder, deleteOrder, updateProductStock } from '../services/adminApi';
+// Miroir de `orderLifecycle.transitions` (backend) : sert uniquement à afficher les boutons autorisés.
 const transitions = { 'En attente': ['En cours de traitement', 'Annulée'], 'En cours de traitement': ['Expédiée', 'Annulée'], 'Expédiée': ['Délivrée'], 'Délivrée': [], 'Annulée': [] };
+/**
+ * Page d'administration (route réservée au rôle admin) : commandes (changement de statut, annulation avec
+ * restitution du stock, suppression) et produits (mise à jour du stock). Toute action est contrôlée par le serveur.
+ */
 const Admin = () => {
   const [orders, setOrders] = useState([]); const [products, setProducts] = useState([]);
   const [selectedId, setSelectedId] = useState(null); const [busy, setBusy] = useState(null);

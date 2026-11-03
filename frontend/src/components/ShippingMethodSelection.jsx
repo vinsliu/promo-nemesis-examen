@@ -1,6 +1,7 @@
 import { shippingOptions } from '../services/checkoutOptions';
 import { useCart } from '../context/CartContext';
 
+/** Liste de choix du transporteur (options de `services/checkoutOptions`), stocké dans le contexte du panier. */
  const ShippingMethodSelection = () => {
   const { shippingMethod, dispatch } = useCart();
   const handleShippingChange = (event) => {

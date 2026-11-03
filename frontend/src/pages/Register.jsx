@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../services/client';
 
+/** Page d'inscription. Le mot de passe est contrôlé ici (12 caractères, 4 classes, 72 octets) avant l'appel, et revalidé par le serveur. */
 const Register = () => {
   const [formData, setFormData] = useState({
     username: '',

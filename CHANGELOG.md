@@ -6,30 +6,47 @@ Les dates sont celles des commits.
 ## [Non publié]
 
 ### Ajouté
-- Journal d'audit Pino (`backend/audit.js`) : connexions, inscriptions, commandes, statuts, suppressions et stock ;
-  champ `env` (`APP_ENV` ou `NODE_ENV`) dans les logs de tous les services.
-- Documentation JSDoc des modules et génération de `docs/API.md` (`npm run docs`).
-- Validation Joi des entrées d'authentification, de commande et de stock (`backend/validation/schemas.js`).
-- Routes `POST /api/auth/logout` et `GET /api/auth/me`.
+- Journal d'audit Pino (`backend/audit.js`) : connexions (succès et échec), inscriptions, déconnexions, création de
+  commande, changement de statut, suppression de commande et modification de stock ; champ `env`
+  (`APP_ENV` ou `NODE_ENV`) dans les logs de tous les services.
+- Validation Joi des entrées d'inscription, de connexion, de commande, de statut et de stock
+  (`backend/validation/schemas.js`) ; les champs inconnus sont supprimés.
+- Routes `POST /api/auth/logout` et `GET /api/auth/me` (rôle relu en base).
+- Documentation JSDoc du backend, de la gateway, des microservices et de `session.js` ; génération de
+  `docs/API.md` (`npm run docs`). Commentaires de documentation sur les pages et composants React.
 - ESLint et Prettier à la racine (`npm run lint`, `npm run format:check`).
 
+### Sécurité
+- **Vol de session par XSS** : le jeton JWT quitte `localStorage` pour un cookie `HttpOnly`, `SameSite=Strict`,
+  `Secure` en production ; le front ne garde que des informations d'affichage.
+- **CSRF** : les requêtes modifiantes authentifiées par cookie exigent l'en-tête `X-Requested-With`.
+- **CORS ouvert à toutes les origines** : liste blanche via `CORS_ORIGIN` (avec identifiants), valeurs normalisées
+  (sans `/` final) ; `Cross-Origin-Resource-Policy: cross-origin` pour l'API.
+- **En-têtes HTTP** : `helmet` ajouté, `x-powered-by` retiré.
+- **Fuite de stack trace** : une erreur ou un JSON invalide répond en JSON sans détail ; 404 JSON.
+- **Corps de requête sans limite explicite** : limité à 10 ko.
+- **Secret JWT faible ou absent** : le backend refuse de démarrer sous 32 caractères.
+- **Écriture de champs non prévus** (`role`, `price`…) : supprimés par Joi ; `role` limité à `user` ou `admin` dans le modèle.
+- **Injection dans les identifiants** : les `id` de commande et de produit doivent être des ObjectId hexadécimaux.
+- **Seed destructif** : `seeder.js` refuse de s'exécuter en production sans `--force`.
+- **Code mort contournant les contrôles** : suppression de `adminController` et `adminRoutes` (statut sans validation).
+
+### Corrigé
+- Statut `Validée` absent de l'énumération Mongoose, écrit sans contrôle par l'ancien contrôleur admin.
+- Doublons de comptes selon la casse de l'e-mail : les e-mails sont enregistrés en minuscules.
+- Bulle du panier qui chevauchait le texte « Panier » dans la barre de navigation.
+- Texte illisible en mode sombre du navigateur : thème clair forcé.
+- Cellule des quantités du panier qui cassait les bordures du tableau.
+- Page de connexion plus haute que l'écran (barre de défilement inutile).
+- Commentaire obsolète dans `Navbar` (session « simulée » avec `localStorage`).
+
 ### Modifié
-- Le jeton JWT passe dans un cookie HttpOnly (`SameSite=Strict`, `Secure` en production) au lieu de `localStorage` ;
-  protection CSRF par l'en-tête `X-Requested-With`. Le front ne garde que des informations d'affichage.
-- CORS limité aux origines de `CORS_ORIGIN` (avec identifiants) ; `Cross-Origin-Resource-Policy: cross-origin`.
-- `helmet`, limite de corps à 10 ko, réponses 404 et erreurs en JSON sans stack trace.
-- Le démarrage du backend exige un `JWT_SECRET` de 32 caractères minimum.v
-- Les e-mails sont enregistrés en minuscules ; `role` limité à `user` ou `admin` dans le modèle.
-- Le seed refuse de s'exécuter en production sans `--force`.
 - Frontend migré de Create React App vers Vite ; tests Jest autonomes.
+- Seul `Authorization: Bearer` restait accepté pour les clients d'API ; il le reste, après le cookie.
 
 ### Supprimé
-- Code mort : `adminController`, `adminRoutes`, routes gateway inutilisées, fichiers vides du microservice
-  `auth-gateway`, doublon `ProductList` du frontend.
-
-### Sécurité
-- Corrige l'exposition du jeton aux attaques XSS, l'acceptation de toutes les origines CORS, l'écriture possible
-  de champs inconnus (rôle, prix) et les pages d'erreur avec stack trace.
+- `adminController`, `adminRoutes`, routes gateway inutilisées (`auth`, `stock`, `notif`), fichier vide du
+  microservice `auth-gateway`, doublon `ProductList` du frontend, dossier `audit/`.
 
 ## [0.3.0] - 2026-11-03
 

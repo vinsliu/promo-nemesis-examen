@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { fetchProducts } from '../services/api';
 import { useCart } from '../context/CartContext';
+/**
+ * Page d'accueil : catalogue des produits avec états de chargement et d'erreur (bouton Réessayer).
+ * Le bouton d'ajout est désactivé en rupture de stock ; le stock affiché est celui du serveur.
+ */
 const ProductList = () => {
   const [products, setProducts] = useState([]); const [loading, setLoading] = useState(true);
   const [error, setError] = useState(''); const [attempt, setAttempt] = useState(0);

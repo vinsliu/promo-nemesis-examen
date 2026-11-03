@@ -1,6 +1,7 @@
 import { paymentOptions } from '../services/checkoutOptions';
 import { useCart } from '../context/CartContext';
 
+/** Liste de choix du mode de paiement (options de `services/checkoutOptions`), stocké dans le contexte du panier. */
 const PaymentMethodSelection = () => {
   const { paymentMethod, dispatch } = useCart();
   const handlePaymentChange = (event) => {
