@@ -1,10 +1,12 @@
+require('dotenv').config();
+const { logger, requestLogging, errorHandler } = require('./logger');
 const express = require('express');
 const nodemailer = require('nodemailer');
 const { timingSafeEqual } = require('node:crypto');
-require('dotenv').config();
 
-function createApp({ env = process.env, fetchEmail = globalThis.fetch, createTransport = nodemailer.createTransport } = {}) {
+function createApp({ env = process.env, fetchEmail = globalThis.fetch, createTransport = nodemailer.createTransport, log = logger } = {}) {
   const app = express();
+  app.use(requestLogging(log));
   app.use(express.json({ limit: '16kb' }));
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -63,15 +65,16 @@ function createApp({ env = process.env, fetchEmail = globalThis.fetch, createTra
       return res.json({ message: 'Email accepté par le fournisseur' });
     } catch {
       // Ne pas exposer les identifiants, le contenu de l'email ou la réponse du fournisseur.
-      console.error('Échec du fournisseur de notifications');
+      req.log.error('Échec du fournisseur de notifications');
       return res.status(502).json({ message: 'Envoi de notification indisponible' });
     }
   });
+  app.use(errorHandler);
   return app;
 }
 
 if (require.main === module) {
   const PORT = process.env.PORT || process.env.NOTIFI_PORT || 4002;
-  createApp().listen(PORT, () => console.log(`Service notifications sur le port ${PORT}`));
+  createApp().listen(PORT, () => logger.info({ port: PORT }, 'Service notifications démarré'));
 }
 module.exports = { createApp };

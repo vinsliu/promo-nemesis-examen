@@ -1,3 +1,4 @@
+const { logger } = require('../logger');
 const { createHash } = require('node:crypto');
 const lifecycle = require('../services/orderLifecycle');
 const notify = require('../services/notifications');
@@ -88,7 +89,7 @@ exports.createOrder = async (req, res) => {
         text: `Une commande a été créée avec succès pour les produits suivants : \n${orderDetails
           .map(item => `Produit ID : ${item.productId}, Quantité : ${item.quantity}`).join('\n')}` });
     } catch {
-      console.error('Échec de la notification de commande');
+      (req.log || logger).error('Échec de la notification de commande');
     }
     return res.status(201).json({ message: 'Commande créée avec succès', order: lifecycle.publicOrder(savedOrder) });
   } catch (error) {
